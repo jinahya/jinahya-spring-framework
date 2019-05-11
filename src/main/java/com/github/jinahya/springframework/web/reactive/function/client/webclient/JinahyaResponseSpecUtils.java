@@ -3,7 +3,6 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 import org.slf4j.Logger;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.lang.NonNull;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
@@ -50,8 +49,7 @@ public final class JinahyaResponseSpecUtils {
      * @return a flux of data buffers whose bytes are written to specified stream
      * @see Flux#map(Function)
      */
-    public static <U extends DataBuffer> Flux<U> mapToWrite(@NonNull final Flux<U> flux,
-                                                            @NonNull final OutputStream stream) {
+    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux, final OutputStream stream) {
         return flux.map(b -> {
             final byte[] d = new byte[b.readableByteCount()];
             b.read(d);
@@ -73,8 +71,7 @@ public final class JinahyaResponseSpecUtils {
      * @return a flux of data buffers whose bytes are written to specified channel
      * @see Flux#map(Function)
      */
-    public static <U extends DataBuffer> Flux<U> mapToWrite(@NonNull final Flux<U> flux,
-                                                            @NonNull final WritableByteChannel channel) {
+    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux, final WritableByteChannel channel) {
         return flux.map(b -> {
             for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
                 try {
@@ -101,9 +98,9 @@ public final class JinahyaResponseSpecUtils {
      * @throws IOException if an I/O error occurs.
      * @see org.springframework.web.reactive.function.client.WebClient.ResponseSpec#bodyToFlux(Class)
      */
-    public static <R> R writeBodyToFileAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                @NonNull final Supplier<? extends File> fileSupplier,
-                                                @NonNull final Function<? super File, ? extends R> fileFunction)
+    public static <R> R writeBodyToFileAndApply(final WebClient.ResponseSpec responseSpec,
+                                                final Supplier<? extends File> fileSupplier,
+                                                final Function<? super File, ? extends R> fileFunction)
             throws IOException {
         final File file = fileSupplier.get();
         try (OutputStream stream = new FileOutputStream(file, true)) {
@@ -113,17 +110,17 @@ public final class JinahyaResponseSpecUtils {
         return fileFunction.apply(file);
     }
 
-    public static <U, R> R writeBodyToFileAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends File> fileSupplier,
-            @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super File, ? super U, ? extends R> fileFunction)
+    public static <U, R> R writeBodyToFileAndApply(final WebClient.ResponseSpec responseSpec,
+                                                   final Supplier<? extends File> fileSupplier,
+                                                   final Supplier<? extends U> argumentSupplier,
+                                                   final BiFunction<? super File, ? super U, ? extends R> fileFunction)
             throws IOException {
         return writeBodyToFileAndApply(responseSpec, fileSupplier, f -> fileFunction.apply(f, argumentSupplier.get()));
     }
 
-    public static void writeBodyToFileAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                @NonNull final Supplier<? extends File> fileSupplier,
-                                                @NonNull final Consumer<? super File> fileConsumer)
+    public static void writeBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                final Supplier<? extends File> fileSupplier,
+                                                final Consumer<? super File> fileConsumer)
             throws IOException {
         writeBodyToFileAndApply(responseSpec, fileSupplier, f -> {
             fileConsumer.accept(f);
@@ -131,17 +128,17 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
-    public static <U> void writeBodyToFileAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Supplier<? extends File> fileSupplier,
-                                                    @NonNull final Supplier<? extends U> argumentSupplier,
-                                                    @NonNull final BiConsumer<? super File, ? super U> fileConsumer)
+    public static <U> void writeBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                    final Supplier<? extends File> fileSupplier,
+                                                    final Supplier<? extends U> argumentSupplier,
+                                                    final BiConsumer<? super File, ? super U> fileConsumer)
             throws IOException {
         writeBodyToFileAndAccept(responseSpec, fileSupplier, f -> fileConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static <R> R writeBodyToTempFileAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Function<? super File, ? extends R> fileFunction)
+    public static <R> R writeBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec,
+                                                    final Function<? super File, ? extends R> fileFunction)
             throws IOException {
         final File file = File.createTempFile("tmp", null);
         try {
@@ -155,14 +152,14 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static <U, R> R writeBodyToTempFileAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super File, ? super U, ? extends R> fileFunction)
+            final WebClient.ResponseSpec responseSpec, final Supplier<? extends U> argumentSupplier,
+            final BiFunction<? super File, ? super U, ? extends R> fileFunction)
             throws IOException {
         return writeBodyToTempFileAndApply(responseSpec, f -> fileFunction.apply(f, argumentSupplier.get()));
     }
 
-    public static void writeBodyToTempFileAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Consumer<? super File> fileConsumer)
+    public static void writeBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                    final Consumer<? super File> fileConsumer)
             throws IOException {
         writeBodyToTempFileAndApply(responseSpec, f -> {
             fileConsumer.accept(f);
@@ -170,18 +167,18 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
-    public static <U> void writeBodyToTempFileAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                        @NonNull final Supplier<? extends U> argumentSupplier,
-                                                        @NonNull final BiConsumer<? super File, ? super U> fileConsumer)
+    public static <U> void writeBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                        final Supplier<? extends U> argumentSupplier,
+                                                        final BiConsumer<? super File, ? super U> fileConsumer)
             throws IOException {
         writeBodyToTempFileAndAccept(responseSpec, f -> fileConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    public static <R> R writeBodyToPathAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                @NonNull final Supplier<? extends Path> pathSupplier,
-                                                @NonNull final Function<? super Path, ? extends R> pathFunction)
+    public static <R> R writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
+                                                final Supplier<? extends Path> pathSupplier,
+                                                final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = pathSupplier.get();
         try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
@@ -191,17 +188,17 @@ public final class JinahyaResponseSpecUtils {
         return pathFunction.apply(path);
     }
 
-    public static <U, R> R writeBodyToPathAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends Path> pathSupplier,
-            @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
+    public static <U, R> R writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
+                                                   final Supplier<? extends Path> pathSupplier,
+                                                   final Supplier<? extends U> argumentSupplier,
+                                                   final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
             throws IOException {
         return writeBodyToPathAndApply(responseSpec, pathSupplier, f -> pathFunction.apply(f, argumentSupplier.get()));
     }
 
-    public static void writeBodyToPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                @NonNull final Supplier<? extends Path> pathSupplier,
-                                                @NonNull final Consumer<? super Path> pathConsumer)
+    public static void writeBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                final Supplier<? extends Path> pathSupplier,
+                                                final Consumer<? super Path> pathConsumer)
             throws IOException {
         writeBodyToPathAndApply(responseSpec, pathSupplier, f -> {
             pathConsumer.accept(f);
@@ -209,17 +206,17 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
-    public static <U> void writeBodyToPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Supplier<? extends Path> pathSupplier,
-                                                    @NonNull final Supplier<? extends U> argumentSupplier,
-                                                    @NonNull final BiConsumer<? super Path, ? super U> pathConsumer)
+    public static <U> void writeBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                    final Supplier<? extends Path> pathSupplier,
+                                                    final Supplier<? extends U> argumentSupplier,
+                                                    final BiConsumer<? super Path, ? super U> pathConsumer)
             throws IOException {
         writeBodyToPathAndAccept(responseSpec, pathSupplier, f -> pathConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static <R> R writeBodyToTempPathAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Function<? super Path, ? extends R> pathFunction)
+    public static <R> R writeBodyToTempPathAndApply(final WebClient.ResponseSpec responseSpec,
+                                                    final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = Files.createTempFile(null, null);
         try {
@@ -233,14 +230,14 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static <U, R> R writeBodyToTempPathAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
+            final WebClient.ResponseSpec responseSpec, final Supplier<? extends U> argumentSupplier,
+            final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
             throws IOException {
         return writeBodyToTempPathAndApply(responseSpec, f -> pathFunction.apply(f, argumentSupplier.get()));
     }
 
-    public static void writeBodyToTempPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Consumer<? super Path> pathConsumer)
+    public static void writeBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                    final Consumer<? super Path> pathConsumer)
             throws IOException {
         writeBodyToTempPathAndApply(responseSpec, p -> {
             pathConsumer.accept(p);
@@ -248,18 +245,17 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
-    public static <U> void writeBodyToTempPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                        @NonNull final Supplier<? extends U> argumentSupplier,
-                                                        @NonNull final BiConsumer<? super Path, ? super U> pathConsumer)
+    public static <U> void writeBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                        final Supplier<? extends U> argumentSupplier,
+                                                        final BiConsumer<? super Path, ? super U> pathConsumer)
             throws IOException {
         writeBodyToTempPathAndAccept(responseSpec, f -> pathConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static <R> R pipeBodyToStreamAndApply(
-            final int pipeSize, @NonNull final WebClient.ResponseSpec responseSpec,
-            @NonNull final Executor taskExecutor,
-            @NonNull final Function<? super InputStream, ? extends R> streamFunction)
+    public static <R> R pipeBodyToStreamAndApply(final int pipeSize, final WebClient.ResponseSpec responseSpec,
+                                                 final Executor taskExecutor,
+                                                 final Function<? super InputStream, ? extends R> streamFunction)
             throws IOException {
         final PipedOutputStream output = new PipedOutputStream();
         final PipedInputStream input = new PipedInputStream(output, pipeSize);
@@ -280,17 +276,17 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static <U, R> R pipeBodyToStreamAndApply(
-            final int pipeSize, @NonNull final WebClient.ResponseSpec responseSpec,
-            @NonNull final Executor taskExecutor, @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super InputStream, ? super U, ? extends R> streamFunction)
+            final int pipeSize, final WebClient.ResponseSpec responseSpec,
+            final Executor taskExecutor, final Supplier<? extends U> argumentSupplier,
+            final BiFunction<? super InputStream, ? super U, ? extends R> streamFunction)
             throws IOException {
         return pipeBodyToStreamAndApply(pipeSize, responseSpec, taskExecutor,
                                         s -> streamFunction.apply(s, argumentSupplier.get()));
     }
 
-    public static void pipeBodyToStreamAndAccept(final int pipeSize, @NonNull final WebClient.ResponseSpec responseSpec,
-                                                 @NonNull final Executor taskExecutor,
-                                                 @NonNull final Consumer<? super InputStream> streamConsumer)
+    public static void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
+                                                 final Executor taskExecutor,
+                                                 final Consumer<? super InputStream> streamConsumer)
             throws IOException {
         pipeBodyToStreamAndApply(pipeSize, responseSpec, taskExecutor, s -> {
             streamConsumer.accept(s);
@@ -298,10 +294,10 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
-    public static <U> void pipeBodyToStreamAndAccept(
-            final int pipeSize, @NonNull final WebClient.ResponseSpec responseSpec,
-            @NonNull final Executor taskExecutor, @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiConsumer<? super InputStream, ? super U> streamConsumer)
+    public static <U> void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
+                                                     final Executor taskExecutor,
+                                                     final Supplier<? extends U> argumentSupplier,
+                                                     final BiConsumer<? super InputStream, ? super U> streamConsumer)
             throws IOException {
         pipeBodyToStreamAndAccept(pipeSize, responseSpec, taskExecutor,
                                   s -> streamConsumer.accept(s, argumentSupplier.get()));
@@ -309,8 +305,8 @@ public final class JinahyaResponseSpecUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
     public static <R> R pipeBodyToChannelAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Executor taskExecutor,
-            @NonNull final Function<? super ReadableByteChannel, ? extends R> channelFunction)
+            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
+            final Function<? super ReadableByteChannel, ? extends R> channelFunction)
             throws IOException {
         final Pipe pipe = Pipe.open();
         final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), pipe.sink());
@@ -328,9 +324,9 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static <U, R> R pipeBodyToChannelAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Executor taskExecutor,
-            @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> channelFunction)
+            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
+            final Supplier<? extends U> argumentSupplier,
+            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> channelFunction)
             throws IOException {
         return pipeBodyToChannelAndApply(responseSpec, taskExecutor,
                                          c -> channelFunction.apply(c, argumentSupplier.get()));
@@ -344,9 +340,9 @@ public final class JinahyaResponseSpecUtils {
      * @param channelConsumer a consumer accepts the piped channel
      * @throws IOException if an I/O error occurs
      */
-    public static void pipeBodyToChannelAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                  @NonNull final Executor taskExecutor,
-                                                  @NonNull final Consumer<? super ReadableByteChannel> channelConsumer)
+    public static void pipeBodyToChannelAndAccept(final WebClient.ResponseSpec responseSpec,
+                                                  final Executor taskExecutor,
+                                                  final Consumer<? super ReadableByteChannel> channelConsumer)
             throws IOException {
         pipeBodyToChannelAndApply(responseSpec, taskExecutor, c -> {
             channelConsumer.accept(c);
@@ -367,9 +363,9 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */
     public static <U> void pipeBodyToChannelAndAccept(
-            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Executor taskExecutor,
-            @NonNull final Supplier<? extends U> argumentSupplier,
-            @NonNull final BiConsumer<? super ReadableByteChannel, ? super U> channelConsumer)
+            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
+            final Supplier<? extends U> argumentSupplier,
+            final BiConsumer<? super ReadableByteChannel, ? super U> channelConsumer)
             throws IOException {
         pipeBodyToChannelAndAccept(responseSpec, taskExecutor, c -> channelConsumer.accept(c, argumentSupplier.get()));
     }

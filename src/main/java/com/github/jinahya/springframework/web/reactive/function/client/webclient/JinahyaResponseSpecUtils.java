@@ -1,6 +1,6 @@
 package com.github.jinahya.springframework.web.reactive.function.client.webclient;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.lang.NonNull;
@@ -29,29 +29,29 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import static java.lang.invoke.MethodHandles.lookup;
+import static org.slf4j.LoggerFactory.getLogger;
+
 /**
- * Utilities for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
+ * Utilities and constants for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
  *
- * @author Jin Kwon &ltonacit_at_gmail.com&gt;
+ * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
-@Slf4j
 public final class JinahyaResponseSpecUtils {
+
+    private static final Logger logger = getLogger(lookup().lookupClass());
 
     /**
      * Maps specified flux of data buffers to write bytes to specified stream.
      *
      * @param flux   the flux of data buffers whose bytes are written to specified stream.
      * @param stream the stream to which bytes are written
+     * @param <U>    data buffer type parameter
      * @return a flux of data buffers whose bytes are written to specified stream
+     * @see Flux#map(Function)
      */
-    public static Flux<DataBuffer> mapToWrite(@NonNull final Flux<DataBuffer> flux,
-                                              @NonNull final OutputStream stream) {
-        if (flux == null) {
-            throw new NullPointerException("flux is null");
-        }
-        if (stream == null) {
-            throw new NullPointerException("stream is null");
-        }
+    public static <U extends DataBuffer> Flux<U> mapToWrite(@NonNull final Flux<U> flux,
+                                                            @NonNull final OutputStream stream) {
         return flux.map(b -> {
             final byte[] d = new byte[b.readableByteCount()];
             b.read(d);
@@ -69,20 +69,16 @@ public final class JinahyaResponseSpecUtils {
      *
      * @param flux    the flux of data buffers whose bytes are written to specified channel
      * @param channel the channel to which bytes are written
+     * @param <U>     data buffer type parameter
      * @return a flux of data buffers whose bytes are written to specified channel
+     * @see Flux#map(Function)
      */
-    public static Flux<DataBuffer> mapToWrite(@NonNull final Flux<DataBuffer> flux,
-                                              @NonNull final WritableByteChannel channel) {
-        if (flux == null) {
-            throw new NullPointerException("flux is null");
-        }
-        if (channel == null) {
-            throw new NullPointerException("channel is null");
-        }
+    public static <U extends DataBuffer> Flux<U> mapToWrite(@NonNull final Flux<U> flux,
+                                                            @NonNull final WritableByteChannel channel) {
         return flux.map(b -> {
             for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
                 try {
-                    channel.write(s);
+                    final int written = channel.write(s);
                 } catch (final IOException ioe) {
                     throw new RuntimeException("failed to write", ioe);
                 }
@@ -147,24 +143,19 @@ public final class JinahyaResponseSpecUtils {
     public static <R> R writeBodyToTempFileAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
                                                     @NonNull final Function<? super File, ? extends R> fileFunction)
             throws IOException {
-        final File file;
-        try {
-            file = File.createTempFile("tmp", null);
-        } catch (final IOException ioe) {
-            throw new RuntimeException("failed to create temp file", ioe);
-        }
+        final File file = File.createTempFile("tmp", null);
         try {
             return writeBodyToFileAndApply(responseSpec, () -> file, fileFunction);
         } finally {
-            if (!file.delete() && file.exists()) {
-                log.error("failed to delete file: {}", file);
+            final boolean deleted = file.delete();
+            if (!deleted && file.exists()) {
+                logger.error("failed to delete the temp file: {}", file);
             }
         }
     }
 
     public static <U, R> R writeBodyToTempFileAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec,
-            @NonNull final Supplier<? extends U> argumentSupplier,
+            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends U> argumentSupplier,
             @NonNull final BiFunction<? super File, ? super U, ? extends R> fileFunction)
             throws IOException {
         return writeBodyToTempFileAndApply(responseSpec, f -> fileFunction.apply(f, argumentSupplier.get()));
@@ -201,8 +192,7 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static <U, R> R writeBodyToPathAndApply(
-            @NonNull final WebClient.ResponseSpec responseSpec,
-            @NonNull final Supplier<? extends Path> pathSupplier,
+            @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Supplier<? extends Path> pathSupplier,
             @NonNull final Supplier<? extends U> argumentSupplier,
             @NonNull final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
             throws IOException {
@@ -211,10 +201,10 @@ public final class JinahyaResponseSpecUtils {
 
     public static void writeBodyToPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
                                                 @NonNull final Supplier<? extends Path> pathSupplier,
-                                                @NonNull final Consumer<? super Path> fileConsumer)
+                                                @NonNull final Consumer<? super Path> pathConsumer)
             throws IOException {
         writeBodyToPathAndApply(responseSpec, pathSupplier, f -> {
-            fileConsumer.accept(f);
+            pathConsumer.accept(f);
             return null;
         });
     }
@@ -222,25 +212,22 @@ public final class JinahyaResponseSpecUtils {
     public static <U> void writeBodyToPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
                                                     @NonNull final Supplier<? extends Path> pathSupplier,
                                                     @NonNull final Supplier<? extends U> argumentSupplier,
-                                                    @NonNull final BiConsumer<? super Path, ? super U> fileConsumer)
+                                                    @NonNull final BiConsumer<? super Path, ? super U> pathConsumer)
             throws IOException {
-        writeBodyToPathAndAccept(responseSpec, pathSupplier, f -> fileConsumer.accept(f, argumentSupplier.get()));
+        writeBodyToPathAndAccept(responseSpec, pathSupplier, f -> pathConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
     public static <R> R writeBodyToTempPathAndApply(@NonNull final WebClient.ResponseSpec responseSpec,
                                                     @NonNull final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
-        final Path path;
-        try {
-            path = Files.createTempFile(null, null);
-        } catch (final IOException ioe) {
-            throw new RuntimeException("failed to create temp file", ioe);
-        }
+        final Path path = Files.createTempFile(null, null);
         try {
             return writeBodyToPathAndApply(responseSpec, () -> path, pathFunction);
         } finally {
-            if (!Files.deleteIfExists(path)) {
+            final boolean deleted = Files.deleteIfExists(path);
+            if (!deleted && Files.exists(path)) {
+                logger.warn("failed to delete the temp path: {}", path);
             }
         }
     }
@@ -253,19 +240,19 @@ public final class JinahyaResponseSpecUtils {
     }
 
     public static void writeBodyToTempPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
-                                                    @NonNull final Consumer<? super Path> fileConsumer)
+                                                    @NonNull final Consumer<? super Path> pathConsumer)
             throws IOException {
         writeBodyToTempPathAndApply(responseSpec, p -> {
-            fileConsumer.accept(p);
+            pathConsumer.accept(p);
             return null;
         });
     }
 
     public static <U> void writeBodyToTempPathAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
                                                         @NonNull final Supplier<? extends U> argumentSupplier,
-                                                        @NonNull final BiConsumer<? super Path, ? super U> fileConsumer)
+                                                        @NonNull final BiConsumer<? super Path, ? super U> pathConsumer)
             throws IOException {
-        writeBodyToTempPathAndAccept(responseSpec, f -> fileConsumer.accept(f, argumentSupplier.get()));
+        writeBodyToTempPathAndAccept(responseSpec, f -> pathConsumer.accept(f, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -274,21 +261,22 @@ public final class JinahyaResponseSpecUtils {
             @NonNull final Executor taskExecutor,
             @NonNull final Function<? super InputStream, ? extends R> streamFunction)
             throws IOException {
-        final PipedOutputStream pos = new PipedOutputStream();
-        final PipedInputStream pis = new PipedInputStream(pos, pipeSize);
-        final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), pos);
+        final PipedOutputStream output = new PipedOutputStream();
+        final PipedInputStream input = new PipedInputStream(output, pipeSize);
+        final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), output);
         taskExecutor.execute(() -> {
-            flux.map(DataBufferUtils::release).blockLast();
-            log.debug("blocked: {}", flux);
+            final Boolean released = flux.map(DataBufferUtils::release).blockLast();
+            logger.debug("blocked: {}, {}", flux, released);
             try {
-                pos.flush();
-                log.debug("flushed: {}", pos);
-                pos.close();
+                output.flush();
+                logger.debug("flushed: {}", output);
+                output.close();
+                logger.debug("closed: {}", output);
             } catch (final IOException ioe) {
-                throw new RuntimeException("failed to flush the piped output stream", ioe);
+                throw new RuntimeException("failed to flush and close the piped output stream", ioe);
             }
         });
-        return streamFunction.apply(pis);
+        return streamFunction.apply(input);
     }
 
     public static <U, R> R pipeBodyToStreamAndApply(
@@ -327,15 +315,15 @@ public final class JinahyaResponseSpecUtils {
         final Pipe pipe = Pipe.open();
         final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), pipe.sink());
         taskExecutor.execute(() -> {
-            flux.map(DataBufferUtils::release).blockLast();
-            log.debug("blocked: {}", flux);
+            final Boolean released = flux.map(DataBufferUtils::release).blockLast();
+            logger.debug("blocked: {} {}", flux, released);
             try {
                 pipe.sink().close();
+                logger.debug("closed: {}", pipe.sink());
             } catch (final IOException ioe) {
-                throw new RuntimeException("failed to close the sink", ioe);
+                throw new RuntimeException("failed to close the pipe.sink", ioe);
             }
         });
-
         return channelFunction.apply(pipe.source());
     }
 
@@ -348,6 +336,14 @@ public final class JinahyaResponseSpecUtils {
                                          c -> channelFunction.apply(c, argumentSupplier.get()));
     }
 
+    /**
+     * Pipes the body of given response spec to a channel and accepts specified consumer with the channel.
+     *
+     * @param responseSpec    the response spec whose body is piped
+     * @param taskExecutor    an executor for clocking the flux
+     * @param channelConsumer a consumer accepts the piped channel
+     * @throws IOException if an I/O error occurs
+     */
     public static void pipeBodyToChannelAndAccept(@NonNull final WebClient.ResponseSpec responseSpec,
                                                   @NonNull final Executor taskExecutor,
                                                   @NonNull final Consumer<? super ReadableByteChannel> channelConsumer)
@@ -358,6 +354,18 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Pipes the body of given response spec to a channel and accepts specified consumer with the channel along with the
+     * value from specified supplier.
+     *
+     * @param responseSpec     the response spec whose body is piped
+     * @param taskExecutor     an executor for blocking the flux.
+     * @param argumentSupplier a supplier for the second argument of the consumer.
+     * @param channelConsumer  the consumer accepts the channel along with the value from {@code argumentSupplier}
+     * @param <U>              second argument type parameter.
+     * @throws IOException if an I/O error occurs.
+     * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
+     */
     public static <U> void pipeBodyToChannelAndAccept(
             @NonNull final WebClient.ResponseSpec responseSpec, @NonNull final Executor taskExecutor,
             @NonNull final Supplier<? extends U> argumentSupplier,

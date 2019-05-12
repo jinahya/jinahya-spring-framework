@@ -309,21 +309,22 @@ public final class JinahyaResponseSpecUtils {
                                                  final Function<? super InputStream, ? extends R> streamFunction)
             throws IOException {
         final PipedOutputStream output = new PipedOutputStream();
-        final PipedInputStream input = new PipedInputStream(output, pipeSize);
-        final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), output);
-        taskExecutor.execute(() -> {
-            flux.map(DataBufferUtils::release).blockLast();
-            logger.trace("blocked: {}", flux);
-            try {
-                output.flush();
-                logger.trace("flushed: {}", output);
-                output.close();
-                logger.trace("closed: {}", output);
-            } catch (final IOException ioe) {
-                throw new RuntimeException("failed to flush and close the piped output stream", ioe);
-            }
-        });
-        return streamFunction.apply(input);
+        try (PipedInputStream input = new PipedInputStream(output, pipeSize)) {
+            final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), output);
+            taskExecutor.execute(() -> {
+                flux.map(DataBufferUtils::release).blockLast();
+                logger.trace("blocked: {}", flux);
+                try {
+                    output.flush();
+                    logger.trace("flushed: {}", output);
+                    output.close();
+                    logger.trace("closed: {}", output);
+                } catch (final IOException ioe) {
+                    throw new RuntimeException("failed to flush and close the piped output stream", ioe);
+                }
+            });
+            return streamFunction.apply(input);
+        }
     }
 
     public static <U, R> R pipeBodyToStreamAndApply(

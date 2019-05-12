@@ -79,6 +79,7 @@ public final class JinahyaResponseSpecUtils {
             for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
                 try {
                     final int written = channel.write(s);
+                    logger.trace("written: {}", written);
                 } catch (final IOException ioe) {
                     throw new RuntimeException("failed to write", ioe);
                 }

@@ -1,15 +1,4 @@
 # jinahya-spring-framework
 
 [![Build Status](https://travis-ci.org/jinahya/jinahya-springframework.svg?branch=develop)](https://travis-ci.org/jinahya/jinahya-springframework)
-
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=bugs)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=code_smells)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=coverage)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=duplicated_lines_density)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=ncloc)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=sqale_rating)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=alert_status)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=reliability_rating)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=security_rating)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=sqale_index)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=vulnerabilities)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)

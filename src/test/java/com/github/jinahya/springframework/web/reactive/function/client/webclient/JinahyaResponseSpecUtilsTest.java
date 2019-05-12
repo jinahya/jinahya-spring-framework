@@ -1,6 +1,8 @@
 package com.github.jinahya.springframework.web.reactive.function.client.webclient;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
@@ -16,9 +18,8 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyToChannelAndAccept;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyToStreamAndAccept;
 import static java.lang.Runtime.getRuntime;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.nio.ByteBuffer.allocate;
@@ -39,30 +40,37 @@ public class JinahyaResponseSpecUtilsTest {
 
     private static final Logger logger = getLogger(lookup().lookupClass());
 
-    private static final int DATA_BUFFER_CAPACITY = 1024;
+    // -----------------------------------------------------------------------------------------------------------------
 
-    private static final int DATA_BUFFER_COUNT = 1024;
+    private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
-    private static final DataBufferFactory DATA_BUFFER_FACTORY
-            = new DefaultDataBufferFactory(false, DATA_BUFFER_CAPACITY);
-
-    static WebClient.ResponseSpec responseSpec() {
+    public static WebClient.ResponseSpec mockResponseSpecBodyToFluxOfDataBuffers(final int count, final int capacity) {
         final WebClient.ResponseSpec mock = mock(WebClient.ResponseSpec.class);
         when(mock.bodyToFlux(DataBuffer.class)).thenReturn(just(
-                range(0, DATA_BUFFER_COUNT)
+                range(0, count)
                         .mapToObj(DATA_BUFFER_FACTORY::allocateBuffer)
-                        .map(b -> b.write(new byte[DATA_BUFFER_CAPACITY]))
+                        .map(b -> b.write(new byte[capacity]))
                         .toArray(DataBuffer[]::new)));
         return mock;
     }
 
+    private static final int DATA_BUFFER_CAPACITY = 8192;
+
+    private static final int DATA_BUFFER_COUNT = 8192;
+
+    public static Stream<Arguments> sourceResponseSpecBodyToFluxOfDataBuffers() {
+        return Stream.of(Arguments.of(
+                mockResponseSpecBodyToFluxOfDataBuffers(DATA_BUFFER_COUNT, DATA_BUFFER_CAPACITY)));
+    }
+
     // -----------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testWriteBodyToFileAndApply() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToFileAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final File file = File.createTempFile("tmp", null);
         file.deleteOnExit();
         final long length = JinahyaResponseSpecUtils.writeBodyToFileAndApply(
-                responseSpec(),
+                responseSpec,
                 () -> file,
                 () -> null,
                 (f, u) -> f.length()
@@ -70,12 +78,13 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, length);
     }
 
-    @Test
-    public void testWriteBodyToFileAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         final File file = File.createTempFile("tmp", null);
         file.deleteOnExit();
         JinahyaResponseSpecUtils.writeBodyToFileAndAccept(
-                responseSpec(),
+                responseSpec,
                 () -> file,
                 () -> null,
                 (f, u) -> {
@@ -93,10 +102,11 @@ public class JinahyaResponseSpecUtilsTest {
      *
      * @throws IOException if an I/O error occurs.
      */
-    @Test
-    public void testWriteBodyToTempFileAndApply() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final long length = JinahyaResponseSpecUtils.writeBodyToTempFileAndApply(
-                responseSpec(),
+                responseSpec,
                 () -> null,
                 (f, u) -> f.length()
         );
@@ -109,10 +119,11 @@ public class JinahyaResponseSpecUtilsTest {
      *
      * @throws IOException if an I/O error occurs.
      */
-    @Test
-    public void testWriteBodyToTempFileAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept(
-                responseSpec(),
+                responseSpec,
                 () -> null,
                 (f, u) -> {
                     assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, f.length());
@@ -121,18 +132,28 @@ public class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testWriteBodyToPathAndApply() throws IOException {
+
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToPathAndApply(WebClient.ResponseSpec, Supplier, Supplier,
+     * BiFunction)}.
+     *
+     * @param responseSpec a response spec
+     * @throws IOException if an I/O error occurs.
+     */
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToPathAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final Path path = Files.createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 final boolean deleted = Files.deleteIfExists(path);
+                logger.trace("deleted: {}", deleted);
             } catch (final IOException ioe) {
                 throw new RuntimeException(ioe);
             }
         }));
         final long size = JinahyaResponseSpecUtils.writeBodyToPathAndApply(
-                responseSpec(),
+                responseSpec,
                 () -> path,
                 () -> null,
                 (p, u) -> {
@@ -146,18 +167,20 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, size);
     }
 
-    @Test
-    public void testWriteBodyToPathAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         final Path path = Files.createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 final boolean deleted = Files.deleteIfExists(path);
+                logger.trace("deleted: {}", deleted);
             } catch (final IOException ioe) {
                 throw new RuntimeException(ioe);
             }
         }));
         JinahyaResponseSpecUtils.writeBodyToPathAndAccept(
-                responseSpec(),
+                responseSpec,
                 () -> path,
                 () -> null,
                 (p, u) -> {
@@ -172,10 +195,11 @@ public class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testWriteBodyToTempPathAndApply() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToTempPathAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final long size = JinahyaResponseSpecUtils.writeBodyToTempPathAndApply(
-                responseSpec(),
+                responseSpec,
                 () -> null,
                 (p, u) -> {
                     try {
@@ -188,10 +212,11 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, size);
     }
 
-    @Test
-    public void testWriteBodyToTempPathAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testWriteBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         JinahyaResponseSpecUtils.writeBodyToTempPathAndAccept(
-                responseSpec(),
+                responseSpec,
                 () -> null,
                 (p, u) -> {
                     try {
@@ -205,16 +230,18 @@ public class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testPipeBodyToStreamAndApply() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testPipeBodyToStreamAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
+        final int pipeSize = 65536;
         final long sum = JinahyaResponseSpecUtils.pipeBodyToStreamAndApply(
-                32768,
-                responseSpec(),
+                pipeSize,
+                responseSpec,
                 newFixedThreadPool(1),
                 () -> null,
                 (s, u) -> {
                     final LongAdder adder = new LongAdder();
-                    final byte[] b = new byte[1048576];
+                    final byte[] b = new byte[pipeSize];
                     try {
                         for (int r; (r = s.read(b)) != -1; adder.add(r)) ;
                         return adder.sum();
@@ -226,16 +253,18 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, sum);
     }
 
-    @Test
-    public void testPipeBodyToStreamAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testPipeBodyToStreamAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         final LongAdder adder = new LongAdder();
-        pipeBodyToStreamAndAccept(
-                32768,
-                responseSpec(),
-                newFixedThreadPool(10),
+        final int pipeSize = 65536;
+        JinahyaResponseSpecUtils.pipeBodyToStreamAndAccept(
+                pipeSize,
+                responseSpec,
+                newFixedThreadPool(1),
                 () -> null,
                 (s, u) -> {
-                    final byte[] b = new byte[1048576];
+                    final byte[] b = new byte[pipeSize];
                     try {
                         for (int r; (r = s.read(b)) != -1; adder.add(r)) ;
                     } catch (final IOException ioe) {
@@ -247,16 +276,17 @@ public class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Test
-    public void testPipeBodyToChannelAndApply() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testPipeBodyToChannelAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final long sum = JinahyaResponseSpecUtils.pipeBodyToChannelAndApply(
-                responseSpec(),
+                responseSpec,
                 newFixedThreadPool(1),
                 () -> null,
                 (c, u) -> {
                     final LongAdder adder = new LongAdder();
                     try {
-                        for (final ByteBuffer b = allocate(1048576); c.read(b) != -1; b.clear()) {
+                        for (final ByteBuffer b = allocate(65536); c.read(b) != -1; b.clear()) {
                             adder.add(b.position());
                         }
                     } catch (final IOException ioe) {
@@ -268,16 +298,17 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT, sum);
     }
 
-    @Test
-    public void testPipeBodyToChannelAndAccept() throws IOException {
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void testPipeBodyToChannelAndAccept(final WebClient.ResponseSpec responseSpec) throws IOException {
         final LongAdder adder = new LongAdder();
-        pipeBodyToChannelAndAccept(
-                responseSpec(),
+        JinahyaResponseSpecUtils.pipeBodyToChannelAndAccept(
+                responseSpec,
                 newFixedThreadPool(1),
                 () -> null,
                 (c, u) -> {
                     try {
-                        for (final ByteBuffer b = allocate(1048576); c.read(b) != -1; b.clear()) {
+                        for (final ByteBuffer b = allocate(65536); c.read(b) != -1; b.clear()) {
                             adder.add(b.position());
                         }
                     } catch (final IOException ioe) {

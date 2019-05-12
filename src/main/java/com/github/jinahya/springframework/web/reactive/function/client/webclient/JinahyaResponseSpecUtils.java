@@ -48,6 +48,8 @@ public final class JinahyaResponseSpecUtils {
      * @param <U>    data buffer type parameter
      * @return a flux of data buffers whose bytes are written to specified stream
      * @see Flux#map(Function)
+     * @see DataBuffer#readableByteCount()
+     * @see DataBuffer#read(byte[])
      */
     public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux, final OutputStream stream) {
         return flux.map(b -> {
@@ -70,6 +72,7 @@ public final class JinahyaResponseSpecUtils {
      * @param <U>     data buffer type parameter
      * @return a flux of data buffers whose bytes are written to specified channel
      * @see Flux#map(Function)
+     * @see DataBuffer#asByteBuffer()
      */
     public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux, final WritableByteChannel channel) {
         return flux.map(b -> {
@@ -110,6 +113,20 @@ public final class JinahyaResponseSpecUtils {
         return fileFunction.apply(file);
     }
 
+    /**
+     * Writes given response spec's body to a file supplied by specified supplier and returns the result of specified
+     * function applied with the file along with the second argument supplied by specified supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the file
+     * @param fileSupplier     the supplier for the file
+     * @param argumentSupplier the supplier for the second argument
+     * @param fileFunction     the function to be applied
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the value the function results
+     * @throws IOException if an I/O error occurs.
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Supplier, Supplier, BiFunction)
+     */
     public static <U, R> R writeBodyToFileAndApply(final WebClient.ResponseSpec responseSpec,
                                                    final Supplier<? extends File> fileSupplier,
                                                    final Supplier<? extends U> argumentSupplier,
@@ -118,6 +135,16 @@ public final class JinahyaResponseSpecUtils {
         return writeBodyToFileAndApply(responseSpec, fileSupplier, f -> fileFunction.apply(f, argumentSupplier.get()));
     }
 
+    /**
+     * Writes given response spec's body to a file supplied by specified file supplier and accepts the file to specified
+     * file consumer.
+     *
+     * @param responseSpec the response spec whose body is written to the file
+     * @param fileSupplier the supplier for the file
+     * @param fileConsumer the consumer accepts the file
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Supplier, Function)
+     */
     public static void writeBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec,
                                                 final Supplier<? extends File> fileSupplier,
                                                 final Consumer<? super File> fileConsumer)
@@ -128,6 +155,17 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Writes given response spec's body to a file supplied by specified file supplier and accepts the file to specified
+     * file consumer along with a second argument supplied by specified argument supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the file
+     * @param fileSupplier     the file supplier
+     * @param argumentSupplier the second argument supplier
+     * @param fileConsumer     the file consumer
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs.
+     */
     public static <U> void writeBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec,
                                                     final Supplier<? extends File> fileSupplier,
                                                     final Supplier<? extends U> argumentSupplier,
@@ -137,16 +175,29 @@ public final class JinahyaResponseSpecUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Writes given response spec's body to a temporary file and returns the result of specified function applied with
+     * the file.
+     *
+     * @param responseSpec the response spec whose body is written to the temporary file
+     * @param fileFunction the function to be applied with the temporary file
+     * @param <R>          result type parameter
+     * @return the result of the function
+     * @throws IOException if an I/O error occurs
+     */
     public static <R> R writeBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec,
                                                     final Function<? super File, ? extends R> fileFunction)
             throws IOException {
         final File file = File.createTempFile("tmp", null);
         try {
+            logger.trace("temporary file: {}", file);
             return writeBodyToFileAndApply(responseSpec, () -> file, fileFunction);
         } finally {
             final boolean deleted = file.delete();
+            logger.trace("deleted: {}", deleted);
             if (!deleted && file.exists()) {
-                logger.error("failed to delete the temp file: {}", file);
+                logger.error("failed to delete the temporary file: {}", file);
             }
         }
     }
@@ -261,13 +312,13 @@ public final class JinahyaResponseSpecUtils {
         final PipedInputStream input = new PipedInputStream(output, pipeSize);
         final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), output);
         taskExecutor.execute(() -> {
-            final Boolean released = flux.map(DataBufferUtils::release).blockLast();
-            logger.debug("blocked: {}, {}", flux, released);
+            flux.map(DataBufferUtils::release).blockLast();
+            logger.trace("blocked: {}", flux);
             try {
                 output.flush();
-                logger.debug("flushed: {}", output);
+                logger.trace("flushed: {}", output);
                 output.close();
-                logger.debug("closed: {}", output);
+                logger.trace("closed: {}", output);
             } catch (final IOException ioe) {
                 throw new RuntimeException("failed to flush and close the piped output stream", ioe);
             }
@@ -311,11 +362,11 @@ public final class JinahyaResponseSpecUtils {
         final Pipe pipe = Pipe.open();
         final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), pipe.sink());
         taskExecutor.execute(() -> {
-            final Boolean released = flux.map(DataBufferUtils::release).blockLast();
-            logger.debug("blocked: {} {}", flux, released);
+            flux.map(DataBufferUtils::release).blockLast();
+            logger.trace("blocked: {}", flux);
             try {
                 pipe.sink().close();
-                logger.debug("closed: {}", pipe.sink());
+                logger.trace("closed: {}", pipe.sink());
             } catch (final IOException ioe) {
                 throw new RuntimeException("failed to close the pipe.sink", ioe);
             }
@@ -336,7 +387,7 @@ public final class JinahyaResponseSpecUtils {
      * Pipes the body of given response spec to a channel and accepts specified consumer with the channel.
      *
      * @param responseSpec    the response spec whose body is piped
-     * @param taskExecutor    an executor for clocking the flux
+     * @param taskExecutor    an executor for blocking the flux
      * @param channelConsumer a consumer accepts the piped channel
      * @throws IOException if an I/O error occurs
      */
@@ -355,11 +406,11 @@ public final class JinahyaResponseSpecUtils {
      * value from specified supplier.
      *
      * @param responseSpec     the response spec whose body is piped
-     * @param taskExecutor     an executor for blocking the flux.
-     * @param argumentSupplier a supplier for the second argument of the consumer.
+     * @param taskExecutor     an executor for a task of blocking the flux
+     * @param argumentSupplier a supplier for the second argument of the consumer
      * @param channelConsumer  the consumer accepts the channel along with the value from {@code argumentSupplier}
-     * @param <U>              second argument type parameter.
-     * @throws IOException if an I/O error occurs.
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs
      * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */
     public static <U> void pipeBodyToChannelAndAccept(

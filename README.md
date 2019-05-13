@@ -6,3 +6,5 @@
 ![Maven Central](https://img.shields.io/maven-central/v/com.github.jinahya/jinahya-springframework.svg)
 [![Javadocs](https://javadoc.io/badge/com.github.jinahya/jinahya-srpingframework.svg)](https://javadoc.io/doc/com.github.jinahya/jinahya-srpingframework)
 ![Beerpay](https://img.shields.io/beerpay/jinahya/jinahya-springframework.svg)
+
+Jinahya's extensions and utilities for Spring Framework.

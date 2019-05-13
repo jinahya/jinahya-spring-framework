@@ -1,5 +1,25 @@
 package com.github.jinahya.springframework.web.reactive.function.client.webclient;
 
+/*-
+ * #%L
+ * jinahya-springframework
+ * %%
+ * Copyright (C) 2019 Jinahya, Inc.
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 import org.slf4j.Logger;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -20,7 +40,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -29,6 +48,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.lang.invoke.MethodHandles.lookup;
+import static java.nio.channels.FileChannel.open;
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.WRITE;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -203,6 +225,19 @@ public final class JinahyaResponseSpecUtils {
         }
     }
 
+    /**
+     * Writes given response spec's body to a temporary file and returns the result of specified function applied with
+     * the file along with an argument supplied by specified supplier.
+     *
+     * @param responseSpec     the response spec whose's body is written to the file
+     * @param argumentSupplier the supplier for the second argument
+     * @param fileFunction     the function to be applied with the file and the second argument
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the value the function results
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
+     */
     public static <U, R> R writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec responseSpec, final Supplier<? extends U> argumentSupplier,
             final BiFunction<? super File, ? super U, ? extends R> fileFunction)
@@ -210,6 +245,14 @@ public final class JinahyaResponseSpecUtils {
         return writeBodyToTempFileAndApply(responseSpec, f -> fileFunction.apply(f, argumentSupplier.get()));
     }
 
+    /**
+     * Writes given response spec's body to a temporary file and accepts the file to specified consumer.
+     *
+     * @param responseSpec the response spec whose body is written to the temporary file
+     * @param fileConsumer the consumer to be accepted with the temporary file
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
+     */
     public static void writeBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec,
                                                     final Consumer<? super File> fileConsumer)
             throws IOException {
@@ -219,6 +262,17 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Writes given response spec's body to a temporary file and accepts the file to specified consumer along with an
+     * argument supplied by specified supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the temporary file
+     * @param argumentSupplier a supplier for the second argument of the consumer
+     * @param fileConsumer     the consumer to be accepted with the temporary file along with the second argument
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, Consumer)
+     */
     public static <U> void writeBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec,
                                                         final Supplier<? extends U> argumentSupplier,
                                                         final BiConsumer<? super File, ? super U> fileConsumer)
@@ -228,18 +282,44 @@ public final class JinahyaResponseSpecUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
 
+    /**
+     * Writes given response spec's body to a path supplied by specified supplier and returns the result of specified
+     * function applied with the path.
+     *
+     * @param responseSpec the response spec whose body is written to the path
+     * @param pathSupplier the supplier for the path
+     * @param pathFunction the function to be applied with the path
+     * @param <R>          result type parameter
+     * @return the value the function results
+     * @throws IOException if an I/O error occurs.
+     * @see #mapToWrite(Flux, WritableByteChannel)
+     */
     public static <R> R writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
                                                 final Supplier<? extends Path> pathSupplier,
                                                 final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = pathSupplier.get();
-        try (FileChannel channel = FileChannel.open(path, StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
+        try (FileChannel channel = open(path, WRITE, APPEND)) {
             mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), channel).map(DataBufferUtils::release).blockLast();
             channel.force(false);
         }
         return pathFunction.apply(path);
     }
 
+    /**
+     * Writes given response spec's body to a path supplied by specified supplier and returns the result of specified
+     * function applied with the path along with an argument supplied by specified supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the path
+     * @param pathSupplier     the supplier for the path
+     * @param argumentSupplier the supplier for the second argument of the function
+     * @param pathFunction     the function to be applied with the path and the second argument
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the value the function results
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToPathAndApply(WebClient.ResponseSpec, Supplier, Function)
+     */
     public static <U, R> R writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
                                                    final Supplier<? extends Path> pathSupplier,
                                                    final Supplier<? extends U> argumentSupplier,
@@ -248,6 +328,16 @@ public final class JinahyaResponseSpecUtils {
         return writeBodyToPathAndApply(responseSpec, pathSupplier, f -> pathFunction.apply(f, argumentSupplier.get()));
     }
 
+    /**
+     * Writes given response spec's body to a path supplied by specified supplier and accepts the path to specified
+     * consumer.
+     *
+     * @param responseSpec the response spec whose body is written to the path
+     * @param pathSupplier the supplier for the path
+     * @param pathConsumer the consumer to be accepted with the path
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToPathAndApply(WebClient.ResponseSpec, Supplier, Function)
+     */
     public static void writeBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec,
                                                 final Supplier<? extends Path> pathSupplier,
                                                 final Consumer<? super Path> pathConsumer)
@@ -258,6 +348,18 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Writes given response spec's body to a path supplied by specified path supplier and accepts the path to specified
+     * path consumer along with an argument supplied by specified argument supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the path
+     * @param pathSupplier     the path supplier
+     * @param argumentSupplier the second argument supplier
+     * @param pathConsumer     the path consumer to be accepted with the path along with the second argument
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToPathAndAccept(WebClient.ResponseSpec, Supplier, Consumer)
+     */
     public static <U> void writeBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec,
                                                     final Supplier<? extends Path> pathSupplier,
                                                     final Supplier<? extends U> argumentSupplier,

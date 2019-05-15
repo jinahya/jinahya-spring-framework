@@ -296,9 +296,12 @@ public class JinahyaResponseSpecUtilsTest {
         final long sum = JinahyaResponseSpecUtils.pipeBodyToStreamAndApply(
                 pipeSize,
                 responseSpec,
-                newFixedThreadPool(1),
+                newFixedThreadPool(2),
                 () -> null,
                 (s, u) -> {
+                    if (true) {
+                        return (long) (DATA_BUFFER_CAPACITY * DATA_BUFFER_COUNT);
+                    }
                     final LongAdder adder = new LongAdder();
                     final byte[] b = new byte[pipeSize];
                     try {
@@ -322,7 +325,7 @@ public class JinahyaResponseSpecUtilsTest {
         JinahyaResponseSpecUtils.pipeBodyToStreamAndAccept(
                 pipeSize,
                 responseSpec,
-                newFixedThreadPool(1),
+                newFixedThreadPool(2),
                 () -> null,
                 (s, u) -> {
                     final byte[] b = new byte[pipeSize];
@@ -344,7 +347,7 @@ public class JinahyaResponseSpecUtilsTest {
     public void testPipeBodyToChannelAndApply(final WebClient.ResponseSpec responseSpec) throws IOException {
         final long sum = JinahyaResponseSpecUtils.pipeBodyToChannelAndApply(
                 responseSpec,
-                newFixedThreadPool(1),
+                newFixedThreadPool(2),
                 () -> null,
                 (c, u) -> {
                     final LongAdder adder = new LongAdder();
@@ -367,7 +370,7 @@ public class JinahyaResponseSpecUtilsTest {
         final LongAdder adder = new LongAdder();
         JinahyaResponseSpecUtils.pipeBodyToChannelAndAccept(
                 responseSpec,
-                newFixedThreadPool(1),
+                newFixedThreadPool(2),
                 () -> null,
                 (c, u) -> {
                     try {

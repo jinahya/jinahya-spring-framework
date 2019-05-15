@@ -21,6 +21,9 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  */
 
 import org.slf4j.Logger;
+import org.springframework.cglib.proxy.Enhancer;
+import org.springframework.cglib.proxy.MethodInterceptor;
+import org.springframework.cglib.proxy.Proxy;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -33,7 +36,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
 import java.nio.channels.FileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
@@ -61,6 +66,60 @@ import static org.slf4j.LoggerFactory.getLogger;
 public final class JinahyaResponseSpecUtils {
 
     private static final Logger logger = getLogger(lookup().lookupClass());
+
+    // -----------------------------------------------------------------------------------------------------------------
+    private static final Method STREAM_CLOSE;
+
+    static {
+        try {
+            STREAM_CLOSE = InputStream.class.getMethod("close");
+        } catch (final NoSuchMethodException nsme) {
+            throw new InstantiationError(nsme.getMessage());
+        }
+    }
+
+    private static final Method CHANNEL_CLOSE;
+
+    static {
+        try {
+            CHANNEL_CLOSE = Channel.class.getMethod("close");
+        } catch (final NoSuchMethodException nsme) {
+            throw new InstantiationError(nsme.getMessage());
+        }
+    }
+
+    //    private static <T extends InputStream> T uncloseable(final Class<T> type, final T stream) {
+//        return type.cast(Proxy.newProxyInstance(
+//                stream.getClass().getClassLoader(), new Class<?>[] {type},
+//                (proxy, method, args) -> {
+//                    logger.info("method: {}", method);
+//                    if (STREAM_CLOSE.equals(method)) {
+//                        throw new UnsupportedOperationException("you're not allowed to invoke " + STREAM_CLOSE);
+//                    }
+//                    return method.invoke(stream, args);
+//                }));
+//    }
+    private static <T extends InputStream> T uncloseable(final Class<T> type, final T stream) {
+        return type.cast(Enhancer.create(type, (MethodInterceptor) (obj, method, args, proxy) -> {
+            if (STREAM_CLOSE.equals(method)) {
+                throw new UnsupportedOperationException("you're not allowed to invoke " + STREAM_CLOSE);
+            }
+            return method.invoke(stream, args);
+        }));
+    }
+
+    private static <T extends Channel> T uncloseable(final Class<T> type, final T channel) {
+        return type.cast(Proxy.newProxyInstance(
+                channel.getClass().getClassLoader(), new Class<?>[] {type},
+                (proxy, method, args) -> {
+                    if (CHANNEL_CLOSE.equals(method)) {
+                        throw new UnsupportedOperationException("you're not allowed to invoke " + CHANNEL_CLOSE);
+                    }
+                    return method.invoke(channel, args);
+                }));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Maps specified flux of data buffers to write bytes to specified stream.
@@ -96,7 +155,8 @@ public final class JinahyaResponseSpecUtils {
      * @see Flux#map(Function)
      * @see DataBuffer#asByteBuffer()
      */
-    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux, final WritableByteChannel channel) {
+    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<U> flux,
+                                                            final WritableByteChannel channel) {
         return flux.map(b -> {
             for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
                 try {
@@ -483,7 +543,18 @@ public final class JinahyaResponseSpecUtils {
                     throw new RuntimeException("failed to flush and close the piped output stream", ioe);
                 }
             });
-            return streamFunction.apply(input);
+            try {
+//                return streamFunction.apply(input);
+                return streamFunction.apply(uncloseable(InputStream.class, input));
+            } finally {
+                try {
+                    for (final byte[] b = new byte[1024]; input.read(b) != -1; ) {
+                        // empty
+                    }
+                } catch (final IOException ioe) {
+                    logger.error("failed to drain piped stream", ioe);
+                }
+            }
         }
     }
 
@@ -546,7 +617,8 @@ public final class JinahyaResponseSpecUtils {
      * @throws IOException if an I/O error occurs
      * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */
-    public static <U> void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
+    public static <U> void pipeBodyToStreamAndAccept(final int pipeSize,
+                                                     final WebClient.ResponseSpec responseSpec,
                                                      final Executor taskExecutor,
                                                      final Supplier<? extends U> argumentSupplier,
                                                      final BiConsumer<? super InputStream, ? super U> streamConsumer)
@@ -586,7 +658,19 @@ public final class JinahyaResponseSpecUtils {
                 throw new RuntimeException("failed to close the pipe.sink", ioe);
             }
         });
-        return channelFunction.apply(pipe.source());
+        try {
+//            return channelFunction.apply(pipe.source());
+            return channelFunction.apply(uncloseable(ReadableByteChannel.class, pipe.source()));
+        } finally {
+            try {
+                for (final ByteBuffer b = ByteBuffer.allocate(1024); pipe.source().read(b) != -1; ) {
+                    b.clear();
+                }
+                logger.trace("piped channel drained");
+            } catch (final IOException ioe) {
+                logger.error("failed to drain piped channel", ioe);
+            }
+        }
     }
 
     /**

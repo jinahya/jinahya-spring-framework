@@ -9,9 +9,9 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,7 +31,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.LongAdder;
@@ -47,7 +49,10 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.IntStream.range;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -81,6 +86,30 @@ public class JinahyaResponseSpecUtilsTest {
     public static Stream<Arguments> sourceResponseSpecBodyToFluxOfDataBuffers() {
         return Stream.of(Arguments.of(
                 mockResponseSpecBodyToFluxOfDataBuffers(DATA_BUFFER_COUNT, DATA_BUFFER_CAPACITY)));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void assertMapToWriteStreamThrowsRuntimeExceptionWhenFailedToWrite(final WebClient.ResponseSpec responseSpec)
+            throws IOException {
+        final OutputStream stream = mock(OutputStream.class);
+        doThrow(new IOException("can't just write")).when(stream).write(any(byte[].class));
+        assertThrows(RuntimeException.class,
+                     () -> JinahyaResponseSpecUtils.mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), stream)
+                             .blockLast());
+    }
+
+    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
+    @ParameterizedTest
+    public void assertMapToWriteChannelThrowsRuntimeExceptionWhenFailedToWrite(
+            final WebClient.ResponseSpec responseSpec)
+            throws IOException {
+        final WritableByteChannel channel = mock(WritableByteChannel.class);
+        doThrow(new IOException("can't just write")).when(channel).write(any(ByteBuffer.class));
+        assertThrows(RuntimeException.class,
+                     () -> JinahyaResponseSpecUtils.mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), channel)
+                             .blockLast());
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -128,6 +157,7 @@ public class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndApply(WebClient.ResponseSpec, Supplier,
      * BiFunction)}.
      *
+     * @param responseSpec a response spec
      * @throws IOException if an I/O error occurs.
      */
     @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
@@ -145,6 +175,7 @@ public class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndAccept(WebClient.ResponseSpec, Supplier,
      * BiConsumer)}.
      *
+     * @param responseSpec a response spec
      * @throws IOException if an I/O error occurs.
      */
     @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
@@ -271,7 +302,9 @@ public class JinahyaResponseSpecUtilsTest {
                     final LongAdder adder = new LongAdder();
                     final byte[] b = new byte[pipeSize];
                     try {
-                        for (int r; (r = s.read(b)) != -1; adder.add(r)) ;
+                        for (int r; (r = s.read(b)) != -1; ) {
+                            adder.add(r);
+                        }
                         return adder.sum();
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
@@ -294,7 +327,9 @@ public class JinahyaResponseSpecUtilsTest {
                 (s, u) -> {
                     final byte[] b = new byte[pipeSize];
                     try {
-                        for (int r; (r = s.read(b)) != -1; adder.add(r)) ;
+                        for (int r; (r = s.read(b)) != -1; ) {
+                            adder.add(r);
+                        }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

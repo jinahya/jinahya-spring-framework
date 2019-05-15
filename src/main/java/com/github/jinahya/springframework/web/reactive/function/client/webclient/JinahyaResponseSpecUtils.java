@@ -9,9 +9,9 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -220,7 +220,7 @@ public final class JinahyaResponseSpecUtils {
             final boolean deleted = file.delete();
             logger.trace("deleted: {}", deleted);
             if (!deleted && file.exists()) {
-                logger.error("failed to delete the temporary file: {}", file);
+                logger.warn("failed to delete the temporary file: {}", file);
             }
         }
     }
@@ -369,6 +369,17 @@ public final class JinahyaResponseSpecUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Writes given response spec's body to a temporary path and returns the result of specified function applied with
+     * the path.
+     *
+     * @param responseSpec the response spec whose body is written to the path
+     * @param pathFunction the function to be applied with the path
+     * @param <R>          result type parameter
+     * @return the result the function results
+     * @throws IOException if an I/O error occurs.
+     */
     public static <R> R writeBodyToTempPathAndApply(final WebClient.ResponseSpec responseSpec,
                                                     final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
@@ -383,13 +394,34 @@ public final class JinahyaResponseSpecUtils {
         }
     }
 
+    /**
+     * Writes given response spec's body to a temporary path and returns the result of specified path function applied
+     * with the path along with an argument supplied by specified argument supplier.
+     *
+     * @param responseSpec     the response spec whose body is written to the path
+     * @param argumentSupplier the argument spec for the second argument of the path function
+     * @param pathFunction     the path function to be applied with the path and the second argument
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the result the function results
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToTempPathAndApply(WebClient.ResponseSpec, Function)
+     */
     public static <U, R> R writeBodyToTempPathAndApply(
             final WebClient.ResponseSpec responseSpec, final Supplier<? extends U> argumentSupplier,
             final BiFunction<? super Path, ? super U, ? extends R> pathFunction)
             throws IOException {
-        return writeBodyToTempPathAndApply(responseSpec, f -> pathFunction.apply(f, argumentSupplier.get()));
+        return writeBodyToTempPathAndApply(responseSpec, p -> pathFunction.apply(p, argumentSupplier.get()));
     }
 
+    /**
+     * Writes given response spec's body to a temporary path and accept the path to specified path consumer.
+     *
+     * @param responseSpec the response spec whose body is written to the path
+     * @param pathConsumer the path consumer to be accepted with the path
+     * @throws IOException if an I/O error occurs.
+     * @see #writeBodyToTempPathAndApply(WebClient.ResponseSpec, Function)
+     */
     public static void writeBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec,
                                                     final Consumer<? super Path> pathConsumer)
             throws IOException {
@@ -399,14 +431,39 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Writes given response spec's body to a temporary path and accept the path, along with an argument supplied by
+     * specified argument supplier, to specified path consumer.
+     *
+     * @param responseSpec     the response spec whose body is written to the path
+     * @param argumentSupplier the argument supplier for the second argument of the path consumer
+     * @param pathConsumer     the path consumer to be accepted with the path and the second argument
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs
+     * @see #writeBodyToTempPathAndAccept(WebClient.ResponseSpec, Consumer)
+     */
     public static <U> void writeBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec,
                                                         final Supplier<? extends U> argumentSupplier,
                                                         final BiConsumer<? super Path, ? super U> pathConsumer)
             throws IOException {
-        writeBodyToTempPathAndAccept(responseSpec, f -> pathConsumer.accept(f, argumentSupplier.get()));
+        writeBodyToTempPathAndAccept(responseSpec, p -> pathConsumer.accept(p, argumentSupplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Pipes given response spec's body and returns the result of specified stream function applied with the piped input
+     * stream.
+     *
+     * @param pipeSize       the size of the pipe's buffer
+     * @param responseSpec   the response spec whose body is piped
+     * @param taskExecutor   an executor for blocking the data buffer stream
+     * @param streamFunction the stream function to be applied with the piped input stream
+     * @param <R>            result type parameter
+     * @return the result the stream function results
+     * @throws IOException if an I/O error occurs.
+     * @see PipedInputStream#PipedInputStream(PipedOutputStream, int)
+     */
     public static <R> R pipeBodyToStreamAndApply(final int pipeSize, final WebClient.ResponseSpec responseSpec,
                                                  final Executor taskExecutor,
                                                  final Function<? super InputStream, ? extends R> streamFunction)
@@ -430,6 +487,22 @@ public final class JinahyaResponseSpecUtils {
         }
     }
 
+    /**
+     * Pipes given response spec's body and returns the result of specified stream function applied with the piped input
+     * stream along with an argument supplied by specified argument supplier.
+     *
+     * @param pipeSize         the size of the pipe's buffer
+     * @param responseSpec     the response spec whose body is piped
+     * @param taskExecutor     an executor for blocking the data buffer stream
+     * @param argumentSupplier the second argument supplier for second argument of the stream function
+     * @param streamFunction   the stream function to be applied with the piped input stream along with the second
+     *                         argument.
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the result the stream function results
+     * @throws IOException if an I/O error occurs.
+     * @see #pipeBodyToStreamAndApply(int, WebClient.ResponseSpec, Executor, Function)
+     */
     public static <U, R> R pipeBodyToStreamAndApply(
             final int pipeSize, final WebClient.ResponseSpec responseSpec,
             final Executor taskExecutor, final Supplier<? extends U> argumentSupplier,
@@ -439,6 +512,16 @@ public final class JinahyaResponseSpecUtils {
                                         s -> streamFunction.apply(s, argumentSupplier.get()));
     }
 
+    /**
+     * Pipes given response spec's body and accepts the stream to specified stream consumer.
+     *
+     * @param pipeSize       the size of the pipe's buffer
+     * @param responseSpec   the response spec whose body is piped
+     * @param taskExecutor   an executor for blocking the underlying data buffer stream
+     * @param streamConsumer the stream consumer to be accepted with the piped input stream
+     * @throws IOException if an I/O error occurs
+     * @see #pipeBodyToStreamAndApply(int, WebClient.ResponseSpec, Executor, Function)
+     */
     public static void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
                                                  final Executor taskExecutor,
                                                  final Consumer<? super InputStream> streamConsumer)
@@ -449,6 +532,20 @@ public final class JinahyaResponseSpecUtils {
         });
     }
 
+    /**
+     * Pipes given response spec's body and accepts the stream to specified stream consumer along with an argument
+     * supplier by specified argument supplier.
+     *
+     * @param pipeSize         the size of the pipe's buffer
+     * @param responseSpec     the response spec whose body is piped
+     * @param taskExecutor     an executor for blocking the underlying data buffer stream
+     * @param argumentSupplier the argument supplier for the second argument of stream consumer
+     * @param streamConsumer   the stream consumer to be accepted with the piped input stream along with the second
+     *                         argument
+     * @param <U>              second argument type parameter
+     * @throws IOException if an I/O error occurs
+     * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
+     */
     public static <U> void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
                                                      final Executor taskExecutor,
                                                      final Supplier<? extends U> argumentSupplier,
@@ -459,6 +556,20 @@ public final class JinahyaResponseSpecUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Pipes given response spec's body and returns the result of specified channel function applied with the piped
+     * channel.
+     *
+     * @param responseSpec    the response spec whose body is pied
+     * @param taskExecutor    an executor for blocking underlying data buffer stream
+     * @param channelFunction the channel function to be applied with the piped channel
+     * @param <R>             result type parameter
+     * @return the result the channel function results
+     * @throws IOException if an I/O error occurs
+     * @see #mapToWrite(Flux, WritableByteChannel)
+     * @see Executor#execute(Runnable)
+     */
     public static <R> R pipeBodyToChannelAndApply(
             final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
             final Function<? super ReadableByteChannel, ? extends R> channelFunction)
@@ -478,6 +589,20 @@ public final class JinahyaResponseSpecUtils {
         return channelFunction.apply(pipe.source());
     }
 
+    /**
+     * Pipes given response spec's body and returns the result of specified channel function applied with the piped
+     * channel along with an argument supplied by specified argument supplier.
+     *
+     * @param responseSpec     the response spec whose body is piped
+     * @param taskExecutor     an executor for blocking underlying data buffer stream
+     * @param argumentSupplier the argument supplier for the second argument of channel function
+     * @param channelFunction  the channel function to be applied with the piped channel along with the second argument
+     * @param <U>              second argument type parameter
+     * @param <R>              result type parameter
+     * @return the result the channel function results
+     * @throws IOException if an I/O error occurs.
+     * @see #pipeBodyToChannelAndApply(WebClient.ResponseSpec, Executor, Function)
+     */
     public static <U, R> R pipeBodyToChannelAndApply(
             final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
             final Supplier<? extends U> argumentSupplier,
@@ -488,12 +613,13 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes the body of given response spec to a channel and accepts specified consumer with the channel.
+     * Pipes given response spec's body and accept the channel to specified channel consumer.
      *
      * @param responseSpec    the response spec whose body is piped
-     * @param taskExecutor    an executor for blocking the flux
-     * @param channelConsumer a consumer accepts the piped channel
+     * @param taskExecutor    an executor for blocking underlying data buffer stream
+     * @param channelConsumer the channel consumer to be accepted with the piped channel
      * @throws IOException if an I/O error occurs
+     * @see #pipeBodyToChannelAndApply(WebClient.ResponseSpec, Executor, Function)
      */
     public static void pipeBodyToChannelAndAccept(final WebClient.ResponseSpec responseSpec,
                                                   final Executor taskExecutor,
@@ -506,13 +632,14 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes the body of given response spec to a channel and accepts specified consumer with the channel along with the
-     * value from specified supplier.
+     * Pipes given response spec's body and accept the piped channel to specified channel consumer along with an
+     * argument supplied by specified argument supplier.
      *
      * @param responseSpec     the response spec whose body is piped
-     * @param taskExecutor     an executor for a task of blocking the flux
-     * @param argumentSupplier a supplier for the second argument of the consumer
-     * @param channelConsumer  the consumer accepts the channel along with the value from {@code argumentSupplier}
+     * @param taskExecutor     an executor for blocking underlying data buffer stream
+     * @param argumentSupplier the argument supplier for the second argument of the channel consumer
+     * @param channelConsumer  the channel consumer to be accepted with the piped channel along with the second
+     *                         argument
      * @param <U>              second argument type parameter
      * @throws IOException if an I/O error occurs
      * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)

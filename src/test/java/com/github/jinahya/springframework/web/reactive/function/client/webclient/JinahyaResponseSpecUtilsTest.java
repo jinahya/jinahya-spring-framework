@@ -31,9 +31,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.LongAdder;
@@ -49,10 +47,7 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.stream.IntStream.range;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -86,30 +81,6 @@ public class JinahyaResponseSpecUtilsTest {
     public static Stream<Arguments> sourceResponseSpecBodyToFluxOfDataBuffers() {
         return Stream.of(Arguments.of(
                 mockResponseSpecBodyToFluxOfDataBuffers(DATA_BUFFER_COUNT, DATA_BUFFER_CAPACITY)));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
-    @ParameterizedTest
-    public void assertMapToWriteStreamThrowsRuntimeExceptionWhenFailedToWrite(final WebClient.ResponseSpec responseSpec)
-            throws IOException {
-        final OutputStream stream = mock(OutputStream.class);
-        doThrow(new IOException("can't just write")).when(stream).write(any(byte[].class));
-        assertThrows(RuntimeException.class,
-                     () -> JinahyaResponseSpecUtils.mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), stream)
-                             .blockLast());
-    }
-
-    @MethodSource({"sourceResponseSpecBodyToFluxOfDataBuffers"})
-    @ParameterizedTest
-    public void assertMapToWriteChannelThrowsRuntimeExceptionWhenFailedToWrite(
-            final WebClient.ResponseSpec responseSpec)
-            throws IOException {
-        final WritableByteChannel channel = mock(WritableByteChannel.class);
-        doThrow(new IOException("can't just write")).when(channel).write(any(ByteBuffer.class));
-        assertThrows(RuntimeException.class,
-                     () -> JinahyaResponseSpecUtils.mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), channel)
-                             .blockLast());
     }
 
     // -----------------------------------------------------------------------------------------------------------------

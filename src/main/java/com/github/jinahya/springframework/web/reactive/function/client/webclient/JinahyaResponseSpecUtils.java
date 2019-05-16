@@ -21,28 +21,20 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  */
 
 import org.slf4j.Logger;
-import org.springframework.cglib.proxy.Enhancer;
-import org.springframework.cglib.proxy.MethodInterceptor;
-import org.springframework.cglib.proxy.Proxy;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
-import java.nio.channels.FileChannel;
+import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
@@ -53,10 +45,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.lang.invoke.MethodHandles.lookup;
-import static java.nio.channels.FileChannel.open;
-import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static org.slf4j.LoggerFactory.getLogger;
+import static org.springframework.core.io.buffer.DataBufferUtils.write;
 
 /**
  * Utilities and constants for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
@@ -66,138 +57,6 @@ import static org.slf4j.LoggerFactory.getLogger;
 public final class JinahyaResponseSpecUtils {
 
     private static final Logger logger = getLogger(lookup().lookupClass());
-
-    // -----------------------------------------------------------------------------------------------------------------
-    private static final Method STREAM_CLOSE;
-
-    static {
-        try {
-            STREAM_CLOSE = InputStream.class.getMethod("close");
-        } catch (final NoSuchMethodException nsme) {
-            throw new InstantiationError(nsme.getMessage());
-        }
-    }
-
-    private static final Method CHANNEL_CLOSE;
-
-    static {
-        try {
-            CHANNEL_CLOSE = Channel.class.getMethod("close");
-        } catch (final NoSuchMethodException nsme) {
-            throw new InstantiationError(nsme.getMessage());
-        }
-    }
-
-    //    private static <T extends InputStream> T uncloseable(final Class<T> type, final T stream) {
-//        return type.cast(Proxy.newProxyInstance(
-//                stream.getClass().getClassLoader(), new Class<?>[] {type},
-//                (proxy, method, args) -> {
-//                    logger.info("method: {}", method);
-//                    if (STREAM_CLOSE.equals(method)) {
-//                        throw new UnsupportedOperationException("you're not allowed to invoke " + STREAM_CLOSE);
-//                    }
-//                    return method.invoke(stream, args);
-//                }));
-//    }
-    static <T extends InputStream> T uncloseable(final Class<T> type, final T stream) {
-        return type.cast(Enhancer.create(type, (MethodInterceptor) (obj, method, args, proxy) -> {
-            if (STREAM_CLOSE.equals(method)) {
-                throw new UnsupportedOperationException("you're not allowed to invoke " + STREAM_CLOSE);
-            }
-            return method.invoke(stream, args);
-        }));
-    }
-
-    static <T extends Channel> T uncloseable(final Class<T> type, final T channel) {
-        return type.cast(Proxy.newProxyInstance(
-                channel.getClass().getClassLoader(), new Class<?>[] {type},
-                (proxy, method, args) -> {
-                    if (CHANNEL_CLOSE.equals(method)) {
-                        throw new UnsupportedOperationException("you're not allowed to invoke " + CHANNEL_CLOSE);
-                    }
-                    return method.invoke(channel, args);
-                }));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-    static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<? extends U> flux, final OutputStream stream,
-                                                     final Consumer<? super IOException> consumer) {
-        return flux.map(b -> {
-            final byte[] d = new byte[b.readableByteCount()];
-            b.read(d);
-            try {
-                stream.write(d);
-            } catch (final IOException ioe) {
-                consumer.accept(ioe);
-            }
-            return b;
-        });
-    }
-
-    static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<? extends U> flux,
-                                                     final WritableByteChannel channel,
-                                                     final Consumer<? super IOException> consumer) {
-        return flux.map(b -> {
-            for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
-                try {
-                    final int written = channel.write(s);
-                    logger.trace("written: {}", written);
-                } catch (final IOException ioe) {
-                    consumer.accept(ioe);
-                }
-            }
-            return b;
-        });
-    }
-
-    /**
-     * Maps specified flux of data buffers to write bytes to specified stream.
-     *
-     * @param flux   the flux of data buffers whose bytes are written to specified stream.
-     * @param stream the stream to which bytes are written
-     * @param <U>    data buffer type parameter
-     * @return a flux of data buffers whose bytes are written to specified stream
-     * @see Flux#map(Function)
-     * @see DataBuffer#readableByteCount()
-     * @see DataBuffer#read(byte[])
-     */
-    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<? extends U> flux, final OutputStream stream) {
-        return flux.map(b -> {
-            final byte[] d = new byte[b.readableByteCount()];
-            b.read(d);
-            try {
-                stream.write(d);
-            } catch (final IOException ioe) {
-                throw new RuntimeException("failed to write", ioe);
-            }
-            return b;
-        });
-    }
-
-    /**
-     * Maps specified flux of data buffers to write bytes to specified channel.
-     *
-     * @param flux    the flux of data buffers whose bytes are written to specified channel
-     * @param channel the channel to which bytes are written
-     * @param <U>     data buffer type parameter
-     * @return a flux of data buffers whose bytes are written to specified channel
-     * @see Flux#map(Function)
-     * @see DataBuffer#asByteBuffer()
-     */
-    public static <U extends DataBuffer> Flux<U> mapToWrite(final Flux<? extends U> flux,
-                                                            final WritableByteChannel channel) {
-        return flux.map(b -> {
-            for (final ByteBuffer s = b.asByteBuffer(); s.hasRemaining(); ) {
-                try {
-                    final int written = channel.write(s);
-                    logger.trace("written: {}", written);
-                } catch (final IOException ioe) {
-                    throw new RuntimeException("failed to write", ioe);
-                }
-            }
-            return b;
-        });
-    }
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -218,14 +77,7 @@ public final class JinahyaResponseSpecUtils {
                                                 final Function<? super File, ? extends R> fileFunction)
             throws IOException {
         final File file = fileSupplier.get();
-        try (OutputStream stream = new FileOutputStream(file, true)) {
-            mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), stream, ioe -> {
-                throw new RuntimeException("failed to write", ioe);
-            })
-                    .map(DataBufferUtils::release).blockLast();
-            stream.flush();
-        }
-        return fileFunction.apply(file);
+        return writeBodyToPathAndApply(responseSpec, file::toPath, p -> fileFunction.apply(p.toFile()));
     }
 
     /**
@@ -304,17 +156,7 @@ public final class JinahyaResponseSpecUtils {
     public static <R> R writeBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec,
                                                     final Function<? super File, ? extends R> fileFunction)
             throws IOException {
-        final File file = File.createTempFile("tmp", null);
-        try {
-            logger.trace("temporary file: {}", file);
-            return writeBodyToFileAndApply(responseSpec, () -> file, fileFunction);
-        } finally {
-            final boolean deleted = file.delete();
-            logger.trace("deleted: {}", deleted);
-            if (!deleted && file.exists()) {
-                logger.warn("failed to delete the temporary file: {}", file);
-            }
-        }
+        return writeBodyToTempPathAndApply(responseSpec, p -> fileFunction.apply(p.toFile()));
     }
 
     /**
@@ -384,20 +226,18 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>          result type parameter
      * @return the value the function results
      * @throws IOException if an I/O error occurs.
-     * @see #mapToWrite(Flux, WritableByteChannel)
      */
     public static <R> R writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
                                                 final Supplier<? extends Path> pathSupplier,
                                                 final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = pathSupplier.get();
-        try (FileChannel channel = open(path, WRITE, APPEND)) {
-            mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), channel, ioe -> {
-                throw new RuntimeException()
-            })
-                    .map(DataBufferUtils::release).blockLast();
-            channel.force(false);
-        }
+        final AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, WRITE);
+        write(responseSpec.bodyToFlux(DataBuffer.class), channel).map(DataBufferUtils::release).blockLast();
+        channel.force(false);
+        logger.debug("channel forced: {}", channel);
+        channel.close();
+        logger.debug("channel closed: {}", channel);
         return pathFunction.apply(path);
     }
 
@@ -565,7 +405,7 @@ public final class JinahyaResponseSpecUtils {
             throws IOException {
         final PipedOutputStream output = new PipedOutputStream();
         try (PipedInputStream input = new PipedInputStream(output, pipeSize)) {
-            final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), output);
+            final Flux<DataBuffer> flux = DataBufferUtils.write(responseSpec.bodyToFlux(DataBuffer.class), output);
             taskExecutor.execute(() -> {
                 flux.map(DataBufferUtils::release).blockLast();
                 logger.trace("blocked: {}", flux);
@@ -579,8 +419,8 @@ public final class JinahyaResponseSpecUtils {
                 }
             });
             try {
-//                return streamFunction.apply(input);
-                return streamFunction.apply(uncloseable(InputStream.class, input));
+                return streamFunction.apply(input);
+//                return streamFunction.apply(uncloseable(InputStream.class, input));
             } finally {
                 try {
                     for (final byte[] b = new byte[1024]; input.read(b) != -1; ) {
@@ -674,7 +514,6 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>             result type parameter
      * @return the result the channel function results
      * @throws IOException if an I/O error occurs
-     * @see #mapToWrite(Flux, WritableByteChannel)
      * @see Executor#execute(Runnable)
      */
     public static <R> R pipeBodyToChannelAndApply(
@@ -682,7 +521,7 @@ public final class JinahyaResponseSpecUtils {
             final Function<? super ReadableByteChannel, ? extends R> channelFunction)
             throws IOException {
         final Pipe pipe = Pipe.open();
-        final Flux<DataBuffer> flux = mapToWrite(responseSpec.bodyToFlux(DataBuffer.class), pipe.sink());
+        final Flux<DataBuffer> flux = DataBufferUtils.write(responseSpec.bodyToFlux(DataBuffer.class), pipe.sink());
         taskExecutor.execute(() -> {
             flux.map(DataBufferUtils::release).blockLast();
             logger.trace("blocked: {}", flux);
@@ -694,8 +533,8 @@ public final class JinahyaResponseSpecUtils {
             }
         });
         try {
-//            return channelFunction.apply(pipe.source());
-            return channelFunction.apply(uncloseable(ReadableByteChannel.class, pipe.source()));
+            return channelFunction.apply(pipe.source());
+//            return channelFunction.apply(uncloseable(ReadableByteChannel.class, pipe.source()));
         } finally {
             try {
                 for (final ByteBuffer b = ByteBuffer.allocate(1024); pipe.source().read(b) != -1; ) {

@@ -420,7 +420,6 @@ public final class JinahyaResponseSpecUtils {
             });
             try {
                 return streamFunction.apply(input);
-//                return streamFunction.apply(uncloseable(InputStream.class, input));
             } finally {
                 try {
                     for (final byte[] b = new byte[1024]; input.read(b) != -1; ) {
@@ -534,7 +533,6 @@ public final class JinahyaResponseSpecUtils {
         });
         try {
             return channelFunction.apply(pipe.source());
-//            return channelFunction.apply(uncloseable(ReadableByteChannel.class, pipe.source()));
         } finally {
             try {
                 for (final ByteBuffer b = ByteBuffer.allocate(1024); pipe.source().read(b) != -1; ) {

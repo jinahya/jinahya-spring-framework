@@ -232,29 +232,11 @@ public final class JinahyaResponseSpecUtils {
                                                 final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = pathSupplier.get();
-        final AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, WRITE);
-        final Flux<DataBuffer> flux = write(responseSpec.bodyToFlux(DataBuffer.class), channel, channel.size())
-                .doOnTerminate(() -> {
-                    try {
-                        channel.force(false);
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("channel forced: {}", channel);
-                        }
-                        channel.close();
-                        if (logger.isTraceEnabled()) {
-                            logger.trace("channel closed: {}", channel);
-                        }
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException("failed to flush and close the channel: {}", ioe);
-                    }
-                });
-        final Disposable disposable = flux.subscribe(releaseConsumer());
-        if (logger.isTraceEnabled()) {
-            logger.trace("release consumer subscribed: {}", disposable);
-        }
-        final DataBuffer last = flux.blockLast();
-        if (logger.isTraceEnabled()) {
-            logger.trace("last blocked: {}", last);
+        try (AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, WRITE)) {
+            final Flux<DataBuffer> flux = write(responseSpec.bodyToFlux(DataBuffer.class), channel, channel.size());
+            final Disposable disposable = flux.subscribe(releaseConsumer());
+            final DataBuffer last = flux.blockLast();
+            channel.force(false);
         }
         return pathFunction.apply(path);
     }
@@ -338,15 +320,9 @@ public final class JinahyaResponseSpecUtils {
             throws IOException {
         final Path path = Files.createTempFile(null, null);
         try {
-            if (logger.isTraceEnabled()) {
-                logger.trace("temp file created: {}", path);
-            }
             return writeBodyToPathAndApply(responseSpec, () -> path, pathFunction);
         } finally {
             final boolean deleted = Files.deleteIfExists(path);
-            if (logger.isTraceEnabled()) {
-                logger.trace("deleted: {} for {}", deleted, path);
-            }
             if (!deleted && Files.exists(path)) { // TODO: 2019-05-18 not required
                 logger.error("failed to delete the temp path: {}", path);
             }
@@ -433,25 +409,13 @@ public final class JinahyaResponseSpecUtils {
             final Flux<DataBuffer> flux = responseSpec.bodyToFlux(DataBuffer.class).doOnTerminate(() -> {
                 try {
                     output.flush();
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("output flushed");
-                    }
                     output.close();
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("output closed");
-                    }
                 } catch (final IOException ioe) {
                     throw new RuntimeException("failed to flush and close the piped output stream", ioe);
                 }
             });
             final Disposable disposable = write(flux, output).subscribe(releaseConsumer());
-            if (logger.isTraceEnabled()) {
-                logger.debug("release consumer subscribed: {}", disposable);
-            }
             final DataBuffer last = flux.blockLast();
-            if (logger.isTraceEnabled()) {
-                logger.trace("last blocked: {}", last);
-            }
         });
         return streamFunction.apply(input);
     }
@@ -548,18 +512,9 @@ public final class JinahyaResponseSpecUtils {
         taskExecutor.execute(() -> {
             final Flux<DataBuffer> flux = responseSpec.bodyToFlux(DataBuffer.class);
             final Disposable disposable = write(flux, pipe.sink()).subscribe(releaseConsumer());
-            if (logger.isTraceEnabled()) {
-                logger.trace("release consumer subscribed: {}", disposable);
-            }
             final DataBuffer last = flux.blockLast();
-            if (logger.isTraceEnabled()) {
-                logger.trace("last blocked: {}", last);
-            }
             try {
                 pipe.sink().close();
-                if (logger.isTraceEnabled()) {
-                    logger.trace("pipe.sink closed");
-                }
             } catch (final IOException ioe) {
                 throw new RuntimeException("failed to close the pipe.sink", ioe);
             }

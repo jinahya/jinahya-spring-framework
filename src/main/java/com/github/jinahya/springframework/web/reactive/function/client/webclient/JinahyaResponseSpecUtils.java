@@ -232,11 +232,29 @@ public final class JinahyaResponseSpecUtils {
                                                 final Function<? super Path, ? extends R> pathFunction)
             throws IOException {
         final Path path = pathSupplier.get();
-        try (AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, WRITE)) {
-            final Flux<DataBuffer> flux = write(responseSpec.bodyToFlux(DataBuffer.class), channel, channel.size());
-            final Disposable disposable = flux.subscribe(releaseConsumer());
-            final DataBuffer last = flux.blockLast();
-            channel.force(false);
+        final AsynchronousFileChannel channel = AsynchronousFileChannel.open(path, WRITE);
+        final Flux<DataBuffer> flux = write(responseSpec.bodyToFlux(DataBuffer.class), channel, channel.size())
+                .doOnTerminate(() -> {
+                    try {
+                        channel.force(false);
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("channel forced: {}", channel);
+                        }
+                        channel.close();
+                        if (logger.isTraceEnabled()) {
+                            logger.trace("channel closed: {}", channel);
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException("failed to flush and close the channel: {}", ioe);
+                    }
+                });
+        final Disposable disposable = flux.subscribe(releaseConsumer());
+        if (logger.isTraceEnabled()) {
+            logger.trace("release consumer subscribed: {}", disposable);
+        }
+        final DataBuffer last = flux.blockLast();
+        if (logger.isTraceEnabled()) {
+            logger.trace("last blocked: {}", last);
         }
         return pathFunction.apply(path);
     }

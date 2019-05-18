@@ -7,11 +7,7 @@
   </appender>
 
   <root level="trace">
-<<<<<<< HEAD
-    <appender-ref ref="console"/>
-=======
     <appender-ref ref="console" />
->>>>>>> sketch
   </root>
 
 </configuration>

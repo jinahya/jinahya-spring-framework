@@ -463,7 +463,7 @@ public final class JinahyaResponseSpecUtils {
      * @param pipeSize         the size of the pipe's buffer
      * @param responseSpec     the response spec whose body is piped
      * @param taskExecutor     an executor for blocking the data buffer stream
-     * @param argumentSupplier the second argument supplier for second argument of the stream function
+     * @param argumentSupplier the argument supplier for second argument of the stream function
      * @param streamFunction   the stream function to be applied with the piped input stream along with the second
      *                         argument.
      * @param <U>              second argument type parameter

@@ -491,7 +491,8 @@ public final class JinahyaResponseSpecUtils {
      * @throws IOException if an I/O error occurs
      * @see #pipeBodyToStreamAndApply(int, WebClient.ResponseSpec, Executor, Function)
      */
-    public static void pipeBodyToStreamAndAccept(final int pipeSize, final WebClient.ResponseSpec responseSpec,
+    public static void pipeBodyToStreamAndAccept(final int pipeSize,
+                                                 final WebClient.ResponseSpec responseSpec,
                                                  final Executor taskExecutor,
                                                  final Consumer<? super InputStream> streamConsumer)
             throws IOException {

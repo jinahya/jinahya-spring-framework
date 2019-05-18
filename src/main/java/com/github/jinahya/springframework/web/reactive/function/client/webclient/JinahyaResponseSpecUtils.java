@@ -245,7 +245,7 @@ public final class JinahyaResponseSpecUtils {
                             logger.trace("channel closed: {}", channel);
                         }
                     } catch (final IOException ioe) {
-                        logger.error("failed to flush and close the channel: {}", channel, ioe);
+                        throw new RuntimeException("failed to flush and close the channel: {}", ioe);
                     }
                 });
         final Disposable disposable = flux.subscribe(releaseConsumer());
@@ -450,7 +450,7 @@ public final class JinahyaResponseSpecUtils {
             }
             final DataBuffer last = flux.blockLast();
             if (logger.isTraceEnabled()) {
-                logger.trace("last: {}", last);
+                logger.trace("last blocked: {}", last);
             }
         });
         return streamFunction.apply(input);

@@ -5,6 +5,6 @@
 [![Known Vulnerabilities](https://snyk.io/test/github/jinahya/jinahya-springframework/badge.svg?targetFile=pom.xml)](https://snyk.io/test/github/jinahya/jinahya-springframework?targetFile=pom.xml)
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.jinahya/jinahya-springframework.svg)](https://search.maven.org/search?q=g:com.github.jinahya%20a:jinahya-springframework)
 [![Javadocs](https://javadoc.io/badge/com.github.jinahya/jinahya-srpingframework.svg)](https://javadoc.io/doc/com.github.jinahya/jinahya-srpingframework)
-![Beerpay](https://img.shields.io/beerpay/jinahya/jinahya-springframework.svg)
+[![Beerpay](https://img.shields.io/beerpay/jinahya/jinahya-springframework.svg)](https://beerpay.io/jinahya/jinahya-springframework)
 
 Jinahya's extensions and utilities for Spring Framework.

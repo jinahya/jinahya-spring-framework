@@ -569,7 +569,7 @@ public final class JinahyaResponseSpecUtils {
      * argument supplied by specified argument supplier.
      *
      * @param responseSpec     the response spec whose body is piped
-     * @param taskExecutor     an executor for blocking underlying data buffer stream
+     * @param taskExecutor     an executor for blocking the data buffer stream
      * @param argumentSupplier the argument supplier for the second argument of the channel consumer
      * @param channelConsumer  the channel consumer to be accepted with the piped channel along with the second
      *                         argument

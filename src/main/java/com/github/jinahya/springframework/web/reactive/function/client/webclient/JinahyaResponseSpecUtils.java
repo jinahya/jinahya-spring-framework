@@ -20,7 +20,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
-import org.slf4j.Logger;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
@@ -43,9 +43,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static java.lang.invoke.MethodHandles.lookup;
 import static java.nio.file.StandardOpenOption.WRITE;
-import static org.slf4j.LoggerFactory.getLogger;
 import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
 
@@ -54,9 +52,8 @@ import static org.springframework.core.io.buffer.DataBufferUtils.write;
  *
  * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
+@Slf4j
 public final class JinahyaResponseSpecUtils {
-
-    private static final Logger logger = getLogger(lookup().lookupClass());
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -323,8 +320,9 @@ public final class JinahyaResponseSpecUtils {
             return writeBodyToPathAndApply(responseSpec, () -> path, pathFunction);
         } finally {
             final boolean deleted = Files.deleteIfExists(path);
+            assert deleted || !Files.exists(path) : "not deleted yet existing path: " + path;
             if (!deleted && Files.exists(path)) { // TODO: 2019-05-18 not required
-                logger.error("failed to delete the temp path: {}", path);
+                log.error("failed to delete the temp path: {}", path);
             }
         }
     }

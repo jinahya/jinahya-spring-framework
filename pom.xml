@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -46,10 +47,10 @@
     <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
     <version.maven-failsafe>${version.maven-surefire}</version.maven-failsafe>
     <version.maven-surefire>3.0.0-M3</version.maven-surefire>
-    <version.org.junit.jupiter>5.5.0</version.org.junit.jupiter>
-    <version.org.mockito>2.28.2</version.org.mockito>
+    <version.org.junit.jupiter>5.5.1</version.org.junit.jupiter>
+    <version.org.mockito>3.0.0</version.org.mockito>
     <version.org.springframework>5.1.8.RELEASE</version.org.springframework>
-<!--    <version.org.springframework.boot>2.1.4.RELEASE</version.org.springframework.boot>-->
+    <!--    <version.org.springframework.boot>2.1.4.RELEASE</version.org.springframework.boot>-->
   </properties>
 
   <dependencyManagement>
@@ -118,6 +119,12 @@
           <artifactId>junit-jupiter-api</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.8</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -208,12 +215,12 @@
             </goals>
             <configuration>
               <rules>
-                <dependencyConvergence />
+                <dependencyConvergence/>
                 <requireJavaVersion>
                   <version>[1.8.0,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <version>3.3.9</version>
+                  <version>[3.3.9,)</version>
                 </requireMavenVersion>
               </rules>
             </configuration>

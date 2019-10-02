@@ -42,15 +42,17 @@
 
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
-    <maven.compiler.testSource>1.8</maven.compiler.testSource>
-    <maven.compiler.testTarget>1.8</maven.compiler.testTarget>
+    <maven.compiler.target>${maven.compiler.source}</maven.compiler.target>
+    <maven.compiler.testSource>${maven.compiler.source}</maven.compiler.testSource>
+    <maven.compiler.testTarget>${maven.compiler.testSource}</maven.compiler.testTarget>
     <version.maven-failsafe>${version.maven-surefire}</version.maven-failsafe>
     <version.maven-surefire>3.0.0-M3</version.maven-surefire>
-    <version.com.fasterxml.jackson.core>2.9.9</version.com.fasterxml.jackson.core>
-    <version.org.junit.jupiter>5.5.1</version.org.junit.jupiter>
-    <version.org.mockito>3.0.0</version.org.mockito>
-    <version.org.springframework>5.1.8.RELEASE</version.org.springframework>
+<!--    <version.com.fasterxml.jackson.core>2.9.9</version.com.fasterxml.jackson.core>-->
+    <version.com.fasterxml.jackson.core>2.10.0.pr3</version.com.fasterxml.jackson.core>
+    <version.org.junit.jupiter>5.5.2</version.org.junit.jupiter>
+    <version.org.mockito>3.1.0</version.org.mockito>
+<!--    <version.org.springframework>5.1.8.RELEASE</version.org.springframework>-->
+    <version.org.springframework>5.2.0.RELEASE</version.org.springframework>
     <!--    <version.org.springframework.boot>2.1.4.RELEASE</version.org.springframework.boot>-->
   </properties>
 
@@ -66,7 +68,7 @@
       <dependency>
         <groupId>org.springframework.data</groupId>
         <artifactId>spring-data-releasetrain</artifactId>
-        <version>Lovelace-SR9</version>
+        <version>Lovelace-SR11</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -142,7 +144,7 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.8</version>
+      <version>1.18.10</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

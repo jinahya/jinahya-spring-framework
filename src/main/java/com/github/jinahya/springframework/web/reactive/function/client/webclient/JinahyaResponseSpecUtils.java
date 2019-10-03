@@ -23,15 +23,10 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.nio.channels.Pipe;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -39,9 +34,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static java.nio.file.Files.createTempFile;
-import static java.nio.file.StandardOpenOption.WRITE;
-import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
+import static java.nio.file.Files.deleteIfExists;
+import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
+import static reactor.core.publisher.Mono.using;
 
 /**
  * Utilities and constants for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
@@ -52,68 +48,58 @@ import static org.springframework.core.io.buffer.DataBufferUtils.write;
 public final class JinahyaResponseSpecUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
-    static Mono<Path> writeBodyToPath(final WebClient.ResponseSpec responseSpec, final Path path) {
-        return write(responseSpec.bodyToFlux(DataBuffer.class), path, WRITE).thenReturn(path);
+
+    /**
+     * Writes given response spec's body to specified file and returns the result of specified function applied with the
+     * file.
+     *
+     * @param spec     the response spec whose body is written to the file.
+     * @param file     the file to which body of the spec is written.
+     * @param function the function to be applied with the file.
+     * @param <R>      result type parameter
+     * @return a mono of the result of the function.
+     */
+    public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec spec, final Path file,
+                                                      final Function<? super Path, ? extends R> function) {
+        return write(spec.bodyToFlux(DataBuffer.class), file).thenReturn(file).map(function);
     }
 
     /**
-     * Writes given response spec's body to a path supplied by specified supplier and returns the result of specified
-     * function applied with the path.
+     * Writes given response spec's body to specified file and returns the result of specified function applied with the
+     * file along with an argument supplied by specified supplier.
      *
-     * @param responseSpec the response spec whose body is written to the path
-     * @param pathSupplier the supplier for the path
-     * @param pathFunction the function to be applied with the path
-     * @param <R>          result type parameter
-     * @return the value the function results
+     * @param <U>      second argument type parameter
+     * @param <R>      result type parameter
+     * @param spec     the response spec whose body is written to the file.
+     * @param file     the file to which the body of the spec is written.
+     * @param function the function to be applied with the file and the second argument.
+     * @param supplier the supplier for the second argument of the function.
+     * @return the value the function results.
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
      */
-    public static <R> Mono<R> writeBodyToPathAndApply(final WebClient.ResponseSpec responseSpec,
-                                                      final Supplier<? extends Path> pathSupplier,
-                                                      final Function<? super Path, ? extends R> pathFunction) {
-        return writeBodyToPath(responseSpec, pathSupplier.get())
-                .map(pathFunction);
+    public static <U, R> Mono<R> writeBodyToFileAndApply(
+            final WebClient.ResponseSpec spec, final Path file,
+            final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
+        return writeBodyToFileAndApply(
+                spec,
+                file,
+                f -> function.apply(f, supplier.get())
+        );
     }
 
     /**
-     * Writes given response spec's body to a path supplied by specified supplier and returns the result of specified
-     * function applied with the path along with an argument supplied by specified supplier.
+     * Writes given response spec's body to specified file and accepts the file to specified consumer.
      *
-     * @param <U>              second argument type parameter
-     * @param <R>              result type parameter
-     * @param responseSpec     the response spec whose body is written to the path
-     * @param pathSupplier     the supplier for the path
-     * @param pathFunction     the function to be applied with the path and the second argument
-     * @param argumentSupplier the supplier for the second argument of the function
-     * @return the value the function results
-     * @see #writeBodyToPathAndApply(WebClient.ResponseSpec, Supplier, Function)
+     * @param spec     the response spec whose body is written to the file.
+     * @param file     the file to which the body is written.
+     * @param consumer the consumer to be accepted with the path.
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
      */
-    public static <U, R> Mono<R> writeBodyToPathAndApplyWith(
-            final WebClient.ResponseSpec responseSpec, final Supplier<? extends Path> pathSupplier,
-            final BiFunction<? super Path, ? super U, ? extends R> pathFunction,
-            final Supplier<? extends U> argumentSupplier) {
-        return writeBodyToPathAndApply(responseSpec, pathSupplier, p -> {
-            log.debug("p: {}", p);
-            return pathFunction.apply(p, argumentSupplier.get());
-        });
-    }
-
-    /**
-     * Writes given response spec's body to a path supplied by specified supplier and accepts the path to specified
-     * consumer.
-     *
-     * @param responseSpec the response spec whose body is written to the path
-     * @param pathSupplier the supplier for the path
-     * @param pathConsumer the consumer to be accepted with the path
-     * @see #writeBodyToPathAndApply(WebClient.ResponseSpec, Supplier, Function)
-     */
-    public static Mono<Void> writeBodyToPathAndAccept(final WebClient.ResponseSpec responseSpec,
-                                                      final Supplier<? extends Path> pathSupplier,
-                                                      final Consumer<? super Path> pathConsumer) {
-        return writeBodyToPathAndApply(
-                responseSpec,
-                pathSupplier,
-                Function.identity())
+    public static Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec spec, final Path file,
+                                                      final Consumer<? super Path> consumer) {
+        return writeBodyToFileAndApply(spec, file, identity())
                 .map(p -> {
-                    pathConsumer.accept(p);
+                    consumer.accept(p);
                     return p;
                 })
                 .then();
@@ -123,44 +109,46 @@ public final class JinahyaResponseSpecUtils {
      * Writes given response spec's body to a path supplied by specified path supplier and accepts the path to specified
      * path consumer along with an argument supplied by specified argument supplier.
      *
-     * @param <U>              second argument type parameter
-     * @param responseSpec     the response spec whose body is written to the path
-     * @param pathSupplier     the path supplier
-     * @param pathConsumer     the path consumer to be accepted with the path along with the second argument
-     * @param argumentSupplier the second argument supplier
-     * @see #writeBodyToPathAndAccept(WebClient.ResponseSpec, Supplier, Consumer)
+     * @param <U>      second argument type parameter
+     * @param spec     the response spec whose body is written to the path
+     * @param file     the path supplier
+     * @param consumer the path consumer to be accepted with the path along with the second argument
+     * @param supplier the second argument supplier
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
-    public static <U> Mono<Void> writeBodyToPathAndAcceptWith(final WebClient.ResponseSpec responseSpec,
-                                                              final Supplier<? extends Path> pathSupplier,
-                                                              final BiConsumer<? super Path, ? super U> pathConsumer,
-                                                              final Supplier<? extends U> argumentSupplier) {
-        return writeBodyToPathAndAccept(
-                responseSpec, pathSupplier, f -> pathConsumer.accept(f, argumentSupplier.get()));
+    public static <U> Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec spec, final Path file,
+                                                          final BiConsumer<? super Path, ? super U> consumer,
+                                                          final Supplier<? extends U> supplier) {
+        return writeBodyToFileAndAccept(
+                spec,
+                file,
+                f -> consumer.accept(f, supplier.get())
+        );
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Writes given response spec's body to a temporary path and returns the result of specified function applied with
-     * the path.
+     * Writes given response spec's body to a temporary file and returns the result of specified function applied with
+     * the file.
      *
-     * @param responseSpec the response spec whose body is written to the path
-     * @param pathFunction the function to be applied with the path
-     * @param <R>          result type parameter
-     * @return the result the function results
+     * @param spec     the response spec whose body is written to the temporary file
+     * @param function the function to be applied with the temporary file
+     * @param <R>      result type parameter
+     * @return a mono of the result of the function.
      */
-    public static <R> Mono<R> writeBodyToTempPathAndApply(final WebClient.ResponseSpec responseSpec,
-                                                          final Function<? super Path, ? extends R> pathFunction) {
-        return writeBodyToPathAndApply(
-                responseSpec,
-                () -> {
+    public static <R> Mono<R> writeBodyToTempFileAndApply(final WebClient.ResponseSpec spec,
+                                                          final Function<? super Path, ? extends R> function) {
+        return using(
+                () -> createTempFile(null, null),
+                f -> write(spec.bodyToFlux(DataBuffer.class), f).thenReturn(f).map(function),
+                f -> {
                     try {
-                        return createTempFile(null, null);
+                        deleteIfExists(f);
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
-                },
-                pathFunction
+                }
         );
     }
 
@@ -168,145 +156,53 @@ public final class JinahyaResponseSpecUtils {
      * Writes given response spec's body to a temporary path and returns the result of specified path function applied
      * with the path along with an argument supplied by specified argument supplier.
      *
-     * @param <U>              second argument type parameter
-     * @param <R>              result type parameter
-     * @param responseSpec     the response spec whose body is written to the path
-     * @param pathFunction     the path function to be applied with the path and the second argument
-     * @param argumentSupplier the argument spec for the second argument of the path function
+     * @param <U>      second argument type parameter
+     * @param <R>      result type parameter
+     * @param spec     the response spec whose body is written to the path
+     * @param function the path function to be applied with the path and the second argument
+     * @param supplier the argument spec for the second argument of the path function
      * @return the result the function results
-     * @see #writeBodyToTempPathAndApply(WebClient.ResponseSpec, Function)
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
      */
-    public static <U, R> Mono<R> writeBodyToTempPathAndApplyWith(
-            final WebClient.ResponseSpec responseSpec,
-            final BiFunction<? super Path, ? super U, ? extends R> pathFunction,
-            final Supplier<? extends U> argumentSupplier) {
-        return writeBodyToTempPathAndApply(responseSpec, p -> pathFunction.apply(p, argumentSupplier.get()));
+    public static <U, R> Mono<R> writeBodyToTempFileAndApply(
+            final WebClient.ResponseSpec spec,
+            final BiFunction<? super Path, ? super U, ? extends R> function,
+            final Supplier<? extends U> supplier) {
+        return writeBodyToTempFileAndApply(spec, f -> function.apply(f, supplier.get()));
     }
 
     /**
      * Writes given response spec's body to a temporary path and accept the path to specified path consumer.
      *
-     * @param responseSpec the response spec whose body is written to the path
-     * @param pathConsumer the path consumer to be accepted with the path
-     * @see #writeBodyToTempPathAndApply(WebClient.ResponseSpec, Function)
+     * @param spec     the response spec whose body is written to the path
+     * @param consumer the path consumer to be accepted with the path
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
      */
-    public static Mono<Void> writeBodyToTempPathAndAccept(final WebClient.ResponseSpec responseSpec,
-                                                          final Consumer<? super Path> pathConsumer) {
-        return writeBodyToTempPathAndApply(responseSpec, p -> {
-            pathConsumer.accept(p);
-            return null;
-        });
+    public static Mono<Void> writeBodyToTempFileAndAccept(final WebClient.ResponseSpec spec,
+                                                          final Consumer<? super Path> consumer) {
+        return writeBodyToTempFileAndApply(
+                spec,
+                f -> {
+                    consumer.accept(f);
+                    return f; // returning null is not welcome
+                })
+                .then();
     }
 
     /**
      * Writes given response spec's body to a temporary path and accept the path, along with an argument supplied by
      * specified argument supplier, to specified path consumer.
      *
-     * @param <U>              second argument type parameter
-     * @param responseSpec     the response spec whose body is written to the path
-     * @param pathConsumer     the path consumer to be accepted with the path and the second argument
-     * @param argumentSupplier the argument supplier for the second argument of the path consumer
-     * @see #writeBodyToTempPathAndAccept(WebClient.ResponseSpec, Consumer)
+     * @param <U>      second argument type parameter
+     * @param spec     the response spec whose body is written to the path
+     * @param consumer the path consumer to be accepted with the path and the second argument
+     * @param supplier the argument supplier for the second argument of the path consumer
+     * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, Consumer)
      */
-    public static <U> Mono<Void> writeBodyToTempPathAndAcceptWith(
-            final WebClient.ResponseSpec responseSpec, final BiConsumer<? super Path, ? super U> pathConsumer,
-            final Supplier<? extends U> argumentSupplier) {
-        return writeBodyToTempPathAndAccept(responseSpec, p -> pathConsumer.accept(p, argumentSupplier.get()));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Pipes given response spec's body and returns the result of specified channel function applied with the piped
-     * channel.
-     *
-     * @param responseSpec    the response spec whose body is pied
-     * @param taskExecutor    an executor for blocking underlying data buffer stream
-     * @param channelFunction the channel function to be applied with the piped channel
-     * @param <R>             result type parameter
-     * @return the result the channel function results
-     * @throws IOException if an I/O error occurs
-     * @see Executor#execute(Runnable)
-     */
-    public static <R> R pipeBodyToChannelAndApply(
-            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
-            final Function<? super ReadableByteChannel, ? extends R> channelFunction)
-            throws IOException {
-        final Pipe pipe = Pipe.open();
-        taskExecutor.execute(() -> {
-            final Flux<DataBuffer> flux = responseSpec.bodyToFlux(DataBuffer.class);
-            final Disposable disposable = write(flux, pipe.sink()).subscribe(releaseConsumer());
-            final DataBuffer last = flux.blockLast();
-            try {
-                pipe.sink().close();
-            } catch (final IOException ioe) {
-                throw new RuntimeException("failed to close the pipe.sink", ioe);
-            }
-        });
-        return channelFunction.apply(pipe.source());
-    }
-
-    /**
-     * Pipes given response spec's body and returns the result of specified channel function applied with the piped
-     * channel along with an argument supplied by specified argument supplier.
-     *
-     * @param <U>              second argument type parameter
-     * @param <R>              result type parameter
-     * @param responseSpec     the response spec whose body is piped
-     * @param taskExecutor     an executor for blocking underlying data buffer stream
-     * @param channelFunction  the channel function to be applied with the piped channel along with the second argument
-     * @param argumentSupplier the argument supplier for the second argument of channel function
-     * @return the result the channel function results
-     * @throws IOException if an I/O error occurs.
-     * @see #pipeBodyToChannelAndApply(WebClient.ResponseSpec, Executor, Function)
-     */
-    public static <U, R> R pipeBodyToChannelAndApplyWith(
-            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
-            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> channelFunction,
-            final Supplier<? extends U> argumentSupplier)
-            throws IOException {
-        return pipeBodyToChannelAndApply(responseSpec, taskExecutor,
-                                         c -> channelFunction.apply(c, argumentSupplier.get()));
-    }
-
-    /**
-     * Pipes given response spec's body and accept the channel to specified channel consumer.
-     *
-     * @param responseSpec    the response spec whose body is piped
-     * @param taskExecutor    an executor for blocking underlying data buffer stream
-     * @param channelConsumer the channel consumer to be accepted with the piped channel
-     * @throws IOException if an I/O error occurs
-     * @see #pipeBodyToChannelAndApply(WebClient.ResponseSpec, Executor, Function)
-     */
-    public static void pipeBodyToChannelAndAccept(final WebClient.ResponseSpec responseSpec,
-                                                  final Executor taskExecutor,
-                                                  final Consumer<? super ReadableByteChannel> channelConsumer)
-            throws IOException {
-        pipeBodyToChannelAndApply(responseSpec, taskExecutor, c -> {
-            channelConsumer.accept(c);
-            return null;
-        });
-    }
-
-    /**
-     * Pipes given response spec's body and accept the piped channel to specified channel consumer along with an
-     * argument supplied by specified argument supplier.
-     *
-     * @param <U>              second argument type parameter
-     * @param responseSpec     the response spec whose body is piped
-     * @param taskExecutor     an executor for blocking the data buffer stream
-     * @param channelConsumer  the channel consumer to be accepted with the piped channel along with the second
-     *                         argument
-     * @param argumentSupplier the argument supplier for the second argument of the channel consumer
-     * @throws IOException if an I/O error occurs
-     * @see #pipeBodyToChannelAndAccept(WebClient.ResponseSpec, Executor, Consumer)
-     */
-    public static <U> void pipeBodyToChannelAndAcceptWith(
-            final WebClient.ResponseSpec responseSpec, final Executor taskExecutor,
-            final BiConsumer<? super ReadableByteChannel, ? super U> channelConsumer,
-            final Supplier<? extends U> argumentSupplier)
-            throws IOException {
-        pipeBodyToChannelAndAccept(responseSpec, taskExecutor, c -> channelConsumer.accept(c, argumentSupplier.get()));
+    public static <U> Mono<Void> writeBodyToTempFileAndAccept(
+            final WebClient.ResponseSpec spec, final BiConsumer<? super Path, ? super U> consumer,
+            final Supplier<? extends U> supplier) {
+        return writeBodyToTempFileAndAccept(spec, p -> consumer.accept(p, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

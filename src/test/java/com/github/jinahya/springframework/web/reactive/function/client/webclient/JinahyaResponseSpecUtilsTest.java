@@ -128,7 +128,6 @@ public class JinahyaResponseSpecUtilsTest {
                 responseSpec,
                 tempFile,
                 (f, u) -> {
-                    log.debug("f: {}, u: {}", f, u);
                     try {
                         return size(f);
                     } catch (final IOException ioe) {
@@ -138,7 +137,6 @@ public class JinahyaResponseSpecUtilsTest {
                 () -> null
         )
                 .block();
-        log.debug("size: {}", size);
         assertEquals(EXPECTED_SIZE, size);
     }
 
@@ -170,6 +168,7 @@ public class JinahyaResponseSpecUtilsTest {
         assertNull(v);
     }
 
+    // -----------------------------------------------------------------------------------------------------------------
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
     public void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec) {
@@ -185,7 +184,6 @@ public class JinahyaResponseSpecUtilsTest {
                 () -> null
         )
                 .block();
-        log.debug("size: {}", size);
         assertEquals(EXPECTED_SIZE, size);
     }
 

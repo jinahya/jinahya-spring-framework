@@ -257,22 +257,29 @@ public final class JinahyaResponseSpecUtils {
         return using(
                 Pipe::open,
                 p -> {
-                    final Future<Disposable> f = executor.submit(() -> {
-                        final Flux<DataBuffer> flux = write(spec.bodyToFlux(DataBuffer.class), p.sink());
-                        final Disposable disposable = flux.subscribe(DataBufferUtils::release);
-                        p.sink().close();
-                        log.debug("p.sink closed");
-                        return disposable;
-                    });
-                    return just(function.apply(p.source())).doFinally(s -> {
-                        try {
-                            final Disposable disposable = f.get();
-                            log.debug("disposable: {}, {}", disposable, disposable.isDisposed());
-                            assert disposable.isDisposed();
-                        } catch (final InterruptedException | ExecutionException e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+                    final Future<Disposable> future = executor.submit(
+                            () -> write(spec.bodyToFlux(DataBuffer.class), p.sink())
+                                    .log()
+                                    .doFinally(s -> {
+                                        try {
+                                            p.sink().close();
+                                            log.debug("p.sink closed");
+                                        } catch (final IOException ioe) {
+                                            throw new RuntimeException(ioe);
+                                        }
+                                    })
+                                    .subscribe(DataBufferUtils.releaseConsumer())
+                    );
+                    return just(function.apply(p.source()))
+                            .log()
+                            .doFinally(s -> {
+                                try {
+                                    final Disposable disposable = future.get();
+                                    assert disposable.isDisposed();
+                                } catch (InterruptedException | ExecutionException e) {
+                                    e.printStackTrace();
+                                }
+                            });
                 },
                 p -> {
                     try {

@@ -178,7 +178,7 @@ public final class JinahyaResponseSpecUtils {
                 }),
                 f -> {
                     try {
-                        deleteIfExists(f);
+                        assert deleteIfExists(f);
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

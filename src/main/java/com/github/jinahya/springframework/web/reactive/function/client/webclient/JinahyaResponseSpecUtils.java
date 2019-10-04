@@ -167,18 +167,18 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec spec, final Function<? super ReadableByteChannel, ? extends R> function) {
         return using(
                 () -> createTempFile(null, null),
-                f -> writeBodyToFileAndApply(spec, f, f1 -> {
+                t -> writeBodyToFileAndApply(spec, t, f -> {
                     try {
-                        try (ReadableByteChannel c = open(f1, READ)) {
+                        try (ReadableByteChannel c = open(f, READ)) {
                             return function.apply(c);
                         }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
                 }),
-                f -> {
+                t -> {
                     try {
-                        assert deleteIfExists(f);
+                        assert deleteIfExists(t);
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

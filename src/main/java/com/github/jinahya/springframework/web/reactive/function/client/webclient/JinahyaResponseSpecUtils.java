@@ -61,7 +61,7 @@ public final class JinahyaResponseSpecUtils {
      * @return a mono of specified file.
      */
     private static Mono<Path> writeToFile(final Flux<DataBuffer> flux, final Path file) {
-        return write(flux, file).thenReturn(file).thenReturn(file);
+        return write(flux, file).thenReturn(file);
     }
 
     /**

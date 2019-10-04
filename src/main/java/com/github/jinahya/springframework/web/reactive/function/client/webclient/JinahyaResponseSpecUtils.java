@@ -44,7 +44,7 @@ import static org.springframework.core.io.buffer.DataBufferUtils.write;
 import static reactor.core.publisher.Mono.using;
 
 /**
- * Utilities and constants for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
+ * Utilities for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
  *
  * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */

@@ -42,10 +42,12 @@ import static com.github.jinahya.springframework.web.reactive.function.client.we
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndApply;
 import static java.lang.Runtime.getRuntime;
+import static java.nio.ByteBuffer.allocate;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.Files.exists;
 import static java.nio.file.Files.size;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.stream.IntStream.range;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -187,7 +189,7 @@ public class JinahyaResponseSpecUtilsTest {
                     assertNotNull(channel);
                     assertNull(u);
                     long count = 0L;
-                    final ByteBuffer b = ByteBuffer.allocate(1024);
+                    final ByteBuffer b = allocate(1024);
                     try {
                         for (int r; (r = channel.read(b)) != -1; count += r) {
                             b.clear();
@@ -218,7 +220,7 @@ public class JinahyaResponseSpecUtilsTest {
                     assertNotNull(channel);
                     assertNull(u);
                     long count = 0L;
-                    final ByteBuffer b = ByteBuffer.allocate(1024);
+                    final ByteBuffer b = allocate(1024);
                     try {
                         for (int r; (r = channel.read(b)) != -1; count += r) {
                             b.clear();
@@ -232,5 +234,33 @@ public class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNull(v);
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    @MethodSource({"sourceResponseSpec"})
+    @ParameterizedTest
+    public void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec) {
+        final Long size = JinahyaResponseSpecUtils.pipeBodyAndApply(
+                responseSpec,
+                newSingleThreadExecutor(),
+                (c, u) -> {
+                    assertNotNull(c);
+                    assertNull(u);
+                    long count = 0L;
+                    final ByteBuffer b = allocate(1024);
+                    try {
+                        for (int r; (r = c.read(b)) != -1; count += r) {
+                            log.debug("r: {}", r);
+                            b.clear();
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                    return count;
+                },
+                () -> null
+        )
+                .block();
+        assertEquals(EXPECTED_SIZE, size);
     }
 }

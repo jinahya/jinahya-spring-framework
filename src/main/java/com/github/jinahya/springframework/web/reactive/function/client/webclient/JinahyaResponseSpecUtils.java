@@ -22,13 +22,19 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -41,6 +47,7 @@ import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
+import static reactor.core.publisher.Mono.just;
 import static reactor.core.publisher.Mono.using;
 
 /**
@@ -119,6 +126,7 @@ public final class JinahyaResponseSpecUtils {
      * @param spec     the response spec whose body is written to the file.
      * @param file     the file to which the body is written.
      * @param consumer the consumer to be accepted with the path.
+     * @return a mono of {@link Void}.
      * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
      */
     public static Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec spec, final Path file,
@@ -140,6 +148,7 @@ public final class JinahyaResponseSpecUtils {
      * @param file     the file to which the body is written.
      * @param consumer the consumer to be accepted with the file along with the second argument.
      * @param supplier the supplier for the second argument.
+     * @return a mono of {@link Void}.
      * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
     public static <U> Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec spec, final Path file,
@@ -240,6 +249,46 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec spec, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
             final Supplier<? extends U> supplier) {
         return writeBodyToTempFileAndAccept(spec, c -> consumer.accept(c, supplier.get()));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec spec, final ExecutorService executor,
+                                        final Function<? super ReadableByteChannel, ? extends R> function) {
+        return using(
+                Pipe::open,
+                p -> {
+                    final Future<Disposable> f = executor.submit(() -> {
+                        final Flux<DataBuffer> flux = write(spec.bodyToFlux(DataBuffer.class), p.sink());
+                        final Disposable disposable = flux.subscribe(DataBufferUtils::release);
+                        p.sink().close();
+                        log.debug("p.sink closed");
+                        return disposable;
+                    });
+                    return just(function.apply(p.source())).doFinally(s -> {
+                        try {
+                            final Disposable disposable = f.get();
+                            log.debug("disposable: {}, {}", disposable, disposable.isDisposed());
+                            assert disposable.isDisposed();
+                        } catch (final InterruptedException | ExecutionException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                },
+                p -> {
+                    try {
+                        p.source().close();
+                        log.debug("p.source closed");
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                }
+        );
+    }
+
+    static <U, R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec spec, final ExecutorService exec,
+                                           final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> func,
+                                           final Supplier<? extends U> supp) {
+        return pipeBodyAndApply(spec, exec, c -> func.apply(c, supp.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

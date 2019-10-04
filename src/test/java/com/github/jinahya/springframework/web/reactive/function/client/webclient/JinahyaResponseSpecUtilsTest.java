@@ -30,7 +30,9 @@ import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
@@ -169,17 +171,31 @@ public class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndApply(WebClient.ResponseSpec, BiFunction, Supplier)}
+     * method.
+     *
+     * @param responseSpec a response spec to test with.
+     */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
     public void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec) {
         final Long size = writeBodyToTempFileAndApply(
                 responseSpec,
-                (f, u) -> {
+                (channel, u) -> {
+                    assertNotNull(channel);
+                    assertNull(u);
+                    long count = 0L;
+                    final ByteBuffer b = ByteBuffer.allocate(1024);
                     try {
-                        return size(f);
+                        for (int r; (r = channel.read(b)) != -1; count += r) {
+                            b.clear();
+                        }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
+                    return count;
                 },
                 () -> null
         )
@@ -187,18 +203,30 @@ public class JinahyaResponseSpecUtilsTest {
         assertEquals(EXPECTED_SIZE, size);
     }
 
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)}
+     * method.
+     *
+     * @param responseSpec a response spec to test with.
+     */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
     public void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec) {
         final Void v = writeBodyToTempFileAndAccept(
                 responseSpec,
-                (f, u) -> {
+                (channel, u) -> {
+                    assertNotNull(channel);
+                    assertNull(u);
+                    long count = 0L;
+                    final ByteBuffer b = ByteBuffer.allocate(1024);
                     try {
-                        final long size = size(f);
-                        assertEquals(EXPECTED_SIZE, size);
+                        for (int r; (r = channel.read(b)) != -1; count += r) {
+                            b.clear();
+                        }
                     } catch (final IOException ioe) {
-                        fail(ioe);
+                        throw new RuntimeException(ioe);
                     }
+                    assertEquals(EXPECTED_SIZE, count);
                 },
                 () -> null
         )

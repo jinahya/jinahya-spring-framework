@@ -40,6 +40,7 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndApply;
@@ -74,7 +75,7 @@ public class JinahyaResponseSpecUtilsTest {
     private static Stream<Arguments> sourceResponseSpec() {
         final LongAdder adder = new LongAdder();
         final Flux<DataBuffer> flux = Flux.just(
-                IntStream.range(0, current().nextInt(1, 1024))
+                IntStream.range(0, current().nextInt(1, 128))
                         .mapToObj(i -> {
                                       final int capacity = current().nextInt(1024);
                                       adder.add(capacity);
@@ -236,6 +237,7 @@ public class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     public void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
         final LongAdder adder = new LongAdder();
+        final boolean escape = true;
         final Long actual = pipeBodyAndApply(
                 responseSpec,
                 newSingleThreadExecutor(),
@@ -247,7 +249,7 @@ public class JinahyaResponseSpecUtilsTest {
                     try {
                         for (int r; (r = c.read(b)) != -1; count += r) {
                             adder.add(1L);
-                            if (false && adder.sum() == 3L) {
+                            if (escape && adder.sum() == 3L) {
                                 break;
                             }
 //                            log.debug("r: {}", r);
@@ -262,6 +264,45 @@ public class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        if (!escape) {
+            assertEquals(expected, actual.longValue());
+        }
+    }
+
+    @MethodSource({"sourceResponseSpec"})
+    @ParameterizedTest
+    public void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
+        final LongAdder adder = new LongAdder();
+        final boolean escape = true;
+        final Void v = pipeBodyAndAccept(
+                responseSpec,
+                newSingleThreadExecutor(),
+                (c, u) -> {
+                    assertNotNull(c);
+                    assertNull(u);
+                    long count = 0L;
+                    final ByteBuffer b = allocate(128);
+                    try {
+                        for (int r; (r = c.read(b)) != -1; count += r) {
+                            adder.add(1L);
+                            if (escape && adder.sum() == 3L) {
+                                break;
+                            }
+//                            log.debug("r: {}", r);
+                            b.clear();
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                    if (!escape) {
+                        assertEquals(expected, count);
+                    } else {
+                        assertTrue(expected >= count);
+                    }
+                },
+                () -> null
+        )
+                .block();
+        assertNull(v);
     }
 }

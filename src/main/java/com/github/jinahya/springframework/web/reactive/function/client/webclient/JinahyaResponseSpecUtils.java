@@ -23,7 +23,6 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -33,7 +32,6 @@ import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -251,47 +249,6 @@ public final class JinahyaResponseSpecUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-    private static <R> Mono<R> pipeBodyAndApply(
-            final WebClient.ResponseSpec response,
-            final Function<Callable<Disposable>, ? extends Future<Disposable>> forker,
-            final Function<? super ReadableByteChannel, ? extends R> function) {
-        return using(
-                Pipe::open,
-                p -> {
-                    final Future<Disposable> future = forker.apply(
-                            () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-//                                    .log()
-                                    .doFinally(s -> {
-                                        try {
-                                            p.sink().close();
-//                                            log.debug("p.sink closed");
-                                        } catch (final IOException ioe) {
-                                            throw new RuntimeException(ioe);
-                                        }
-                                    })
-                                    .subscribe(DataBufferUtils.releaseConsumer())
-                    );
-                    return just(function.apply(p.source()))
-//                            .log()
-                            .doFinally(s -> {
-                                try {
-                                    final Disposable disposable = future.get();
-                                    assert disposable.isDisposed();
-                                } catch (InterruptedException | ExecutionException e) {
-                                    e.printStackTrace();
-                                }
-                            });
-                },
-                p -> {
-                    try {
-                        p.source().close();
-//                        log.debug("p.source closed");
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
-    }
 
     /**
      * Pipes given response spec's body and returns the result of specified function applied with the {@link
@@ -305,9 +262,6 @@ public final class JinahyaResponseSpecUtils {
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final ExecutorService executor,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
-        if (true) {
-            return pipeBodyAndApply(response, executor::submit, function);
-        }
         return using(
                 Pipe::open,
                 p -> {
@@ -378,88 +332,6 @@ public final class JinahyaResponseSpecUtils {
      * @return a mono of {@link Void}.
      */
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,
-                                            final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
-                                            final Supplier<? extends U> supplier) {
-        return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final ThreadPoolTaskExecutor executor,
-                                        final Function<? super ReadableByteChannel, ? extends R> function) {
-        if (true) {
-            return pipeBodyAndApply(response, executor::submit, function);
-        }
-        return using(
-                Pipe::open,
-                p -> {
-                    final Future<Disposable> future = executor.submit(
-                            () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-//                                    .log()
-                                    .doFinally(s -> {
-                                        try {
-                                            p.sink().close();
-//                                            log.debug("p.sink closed");
-                                        } catch (final IOException ioe) {
-                                            throw new RuntimeException(ioe);
-                                        }
-                                    })
-                                    .subscribe(DataBufferUtils.releaseConsumer())
-                    );
-                    return just(function.apply(p.source()))
-//                            .log()
-                            .doFinally(s -> {
-                                try {
-                                    final Disposable disposable = future.get();
-                                    assert disposable.isDisposed();
-                                } catch (InterruptedException | ExecutionException e) {
-                                    e.printStackTrace();
-                                }
-                            });
-                },
-                p -> {
-                    try {
-                        p.source().close();
-//                        log.debug("p.source closed");
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
-    }
-
-    static <U, R> Mono<R> pipeBodyAndApply(
-            final WebClient.ResponseSpec response, final ThreadPoolTaskExecutor executor,
-            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
-            final Supplier<? extends U> supplier) {
-        return pipeBodyAndApply(response, executor, c -> function.apply(c, supplier.get()));
-    }
-
-    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ThreadPoolTaskExecutor executor,
-                                        final Consumer<? super ReadableByteChannel> consumer) {
-        return pipeBodyAndApply(
-                response,
-                executor,
-                c -> {
-                    consumer.accept(c);
-                    return c;
-                }
-        )
-                .then();
-    }
-
-    /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument supplied by
-     * specified supplier, to specified consumer.
-     *
-     * @param response the response spec whose body is piped.
-     * @param executor an executor service for piping the body.
-     * @param consumer the consumer to be accepted with the body stream.
-     * @param supplier the supplier for the second argument.
-     * @param <U>      second argument type parameter
-     * @return a mono of {@link Void}.
-     */
-    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
-                                            final ThreadPoolTaskExecutor executor,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                             final Supplier<? extends U> supplier) {
         return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));

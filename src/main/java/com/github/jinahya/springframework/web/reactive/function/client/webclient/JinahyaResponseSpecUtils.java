@@ -236,6 +236,8 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the body channel.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
+     * @see org.springframework.core.task.support.ExecutorServiceAdapter
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, BiConsumer, Supplier)
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final ExecutorService executor,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
@@ -248,7 +250,7 @@ public final class JinahyaResponseSpecUtils {
                                     .doFinally(s -> {
                                         try {
                                             p.sink().close();
-//                                            log.debug("p.sink closed");
+                                            log.trace("p.sink closed");
                                         } catch (final IOException ioe) {
                                             throw new RuntimeException(ioe);
                                         }
@@ -260,7 +262,7 @@ public final class JinahyaResponseSpecUtils {
                             .doFinally(s -> {
                                 try {
                                     final Disposable disposable = future.get();
-                                    assert disposable.isDisposed();
+                                    log.trace("disposable.disposed: {}", disposable.isDisposed());
                                 } catch (InterruptedException | ExecutionException e) {
                                     e.printStackTrace();
                                 }
@@ -269,7 +271,7 @@ public final class JinahyaResponseSpecUtils {
                 p -> {
                     try {
                         p.source().close();
-//                        log.debug("p.source closed");
+                        log.trace("p.source closed");
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
@@ -277,6 +279,18 @@ public final class JinahyaResponseSpecUtils {
         );
     }
 
+    /**
+     * Pipes given response spec's body and returns the result of specified function applied with the {@link
+     * Pipe#sink()} and a second argument from specified supplier.
+     *
+     * @param response the response spec whose body is piped.
+     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param function the function to be applied with the body channel.
+     * @param supplier the supplier for the second argument of the function.
+     * @param <R>      result type parameter
+     * @return a mono of result of the function.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, Function)
+     */
     static <U, R> Mono<R> pipeBodyAndApply(
             final WebClient.ResponseSpec response, final ExecutorService executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
@@ -284,6 +298,16 @@ public final class JinahyaResponseSpecUtils {
         return pipeBodyAndApply(response, executor, c -> function.apply(c, supplier.get()));
     }
 
+    /**
+     * Pipes given response spec's body and accepts the {@link Pipe#sink()} to specified consumer.
+     *
+     * @param response the response spec whose body is piped.
+     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param consumer the consumer to be accepted with the body channel.
+     * @return a mono of {@link Void}.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, Function)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, BiConsumer, Supplier)
+     */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,
                                         final Consumer<? super ReadableByteChannel> consumer) {
         return pipeBodyAndApply(
@@ -298,8 +322,8 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument supplied by
-     * specified supplier, to specified consumer.
+     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument from specified
+     * supplier, to specified consumer.
      *
      * @param response the response spec whose body is piped.
      * @param executor an executor service for piping the body.
@@ -307,6 +331,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, Consumer)
      */
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,

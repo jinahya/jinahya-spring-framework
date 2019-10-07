@@ -25,7 +25,6 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -60,27 +59,27 @@ public final class JinahyaResponseSpecUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Writes specified flux to specified file.
-     *
-     * @param flux the flux to be written.
-     * @param file the file to which the flux is written.
-     * @return a mono of specified file.
-     */
-    private static Mono<Path> writeToFile(final Flux<DataBuffer> flux, final Path file) {
-        return write(flux, file).thenReturn(file);
-    }
+//    /**
+//     * Writes specified flux to specified file.
+//     *
+//     * @param flux the flux to be written.
+//     * @param file the file to which the flux is written.
+//     * @return a mono of specified file.
+//     */
+//    private static Mono<Path> writeToFile(final Flux<DataBuffer> flux, final Path file) {
+//        return write(flux, file).thenReturn(file);
+//    }
 
-    /**
-     * Writes specified response spec's body to specified file and returns a mono of the file.
-     *
-     * @param response the response spec whose body is written to the file.
-     * @param file     the file to which the response spec't body is written.
-     * @return a mono of specified file.
-     */
-    private static Mono<Path> writeBodyToFile(final WebClient.ResponseSpec response, final Path file) {
-        return writeToFile(response.bodyToFlux(DataBuffer.class), file);
-    }
+//    /**
+//     * Writes specified response spec's body to specified file and returns a mono of the file.
+//     *
+//     * @param response the response spec whose body is written to the file.
+//     * @param file     the file to which the response spec't body is written.
+//     * @return a mono of specified file.
+//     */
+//    private static Mono<Path> writeBodyToFile(final WebClient.ResponseSpec response, final Path file) {
+//        return writeToFile(response.bodyToFlux(DataBuffer.class), file);
+//    }
 
     /**
      * Writes given response spec's body to specified file and returns the result of specified function applied with the
@@ -94,7 +93,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
                                                       final Function<? super Path, ? extends R> function) {
-        return writeBodyToFile(response, file).map(function);
+        return write(response.bodyToFlux(DataBuffer.class), file).thenReturn(file).map(function);
     }
 
     /**
@@ -330,6 +329,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, Consumer)
      */
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,

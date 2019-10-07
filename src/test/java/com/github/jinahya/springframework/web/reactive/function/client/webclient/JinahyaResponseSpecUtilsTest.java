@@ -66,7 +66,7 @@ import static org.mockito.Mockito.when;
  * A class for testing {@link JinahyaResponseSpecUtils}.
  */
 @Slf4j
-public class JinahyaResponseSpecUtilsTest {
+class JinahyaResponseSpecUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -104,24 +104,24 @@ public class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction,
      * Supplier)} method.
      *
-     * @param responseSpec a response spec
+     * @param response a response spec
      * @throws IOException if an I/O error occurs.
      */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testWriteBodyToFileAndApply(final WebClient.ResponseSpec responseSpec, final long expected)
+    void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected)
             throws IOException {
-        final Path tempFile = createTempFile(null, null);
+        final Path file = createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                assertTrue(!exists(tempFile) || deleteIfExists(tempFile));
+                assertTrue(!exists(file) || deleteIfExists(file));
             } catch (final IOException ioe) {
                 throw new RuntimeException(ioe);
             }
         }));
         final Long actual = writeBodyToFileAndApply(
-                responseSpec,
-                tempFile,
+                response,
+                file,
                 (f, u) -> {
                     try {
                         return size(f);
@@ -138,19 +138,19 @@ public class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec responseSpec, final long expected)
+    void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected)
             throws IOException {
-        final Path tempFile = createTempFile(null, null);
+        final Path file = createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                assertTrue(!exists(tempFile) || deleteIfExists(tempFile));
+                assertTrue(!exists(file) || deleteIfExists(file));
             } catch (final IOException ioe) {
                 throw new RuntimeException(ioe);
             }
         }));
         final Void v = writeBodyToFileAndAccept(
-                responseSpec,
-                tempFile,
+                response,
+                file,
                 (f, u) -> {
                     try {
                         final long actual = size(f);
@@ -176,7 +176,7 @@ public class JinahyaResponseSpecUtilsTest {
      */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Long actual = writeBodyToTempFileAndApply(
                 responseSpec,
                 (channel, u) -> {
@@ -209,7 +209,7 @@ public class JinahyaResponseSpecUtilsTest {
      */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Void v = writeBodyToTempFileAndAccept(
                 responseSpec,
                 (c, u) -> {
@@ -235,7 +235,7 @@ public class JinahyaResponseSpecUtilsTest {
     // -----------------------------------------------------------------------------------------------------------------'
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Long actual = pipeBodyAndApply(
                 responseSpec,
                 newSingleThreadExecutor(),
@@ -263,7 +263,7 @@ public class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testPipeBodyAndApplyEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndApplyEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
         final LongAdder adder = new LongAdder();
         final Long actual = pipeBodyAndApply(
                 responseSpec,
@@ -295,7 +295,7 @@ public class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Void v = pipeBodyAndAccept(
                 responseSpec,
                 newSingleThreadExecutor(),
@@ -322,7 +322,7 @@ public class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    public void testPipeBodyAndAcceptEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndAcceptEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Void v = pipeBodyAndAccept(
                 responseSpec,
                 newSingleThreadExecutor(),

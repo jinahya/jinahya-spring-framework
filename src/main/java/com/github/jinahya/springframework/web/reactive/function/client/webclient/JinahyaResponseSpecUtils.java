@@ -59,28 +59,6 @@ public final class JinahyaResponseSpecUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-//    /**
-//     * Writes specified flux to specified file.
-//     *
-//     * @param flux the flux to be written.
-//     * @param file the file to which the flux is written.
-//     * @return a mono of specified file.
-//     */
-//    private static Mono<Path> writeToFile(final Flux<DataBuffer> flux, final Path file) {
-//        return write(flux, file).thenReturn(file);
-//    }
-
-//    /**
-//     * Writes specified response spec's body to specified file and returns a mono of the file.
-//     *
-//     * @param response the response spec whose body is written to the file.
-//     * @param file     the file to which the response spec't body is written.
-//     * @return a mono of specified file.
-//     */
-//    private static Mono<Path> writeBodyToFile(final WebClient.ResponseSpec response, final Path file) {
-//        return writeToFile(response.bodyToFlux(DataBuffer.class), file);
-//    }
-
     /**
      * Writes given response spec's body to specified file and returns the result of specified function applied with the
      * file.

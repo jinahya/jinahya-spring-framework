@@ -161,7 +161,7 @@ public final class JinahyaResponseSpecUtils {
                 t -> {
                     try {
                         final boolean deleted = deleteIfExists(t);
-                        assert deleted;
+                        //assert deleted;
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

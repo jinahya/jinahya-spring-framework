@@ -236,8 +236,6 @@ public class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
     public void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final LongAdder adder = new LongAdder();
-        final boolean escape = true;
         final Long actual = pipeBodyAndApply(
                 responseSpec,
                 newSingleThreadExecutor(),
@@ -248,8 +246,36 @@ public class JinahyaResponseSpecUtilsTest {
                     final ByteBuffer b = allocate(128);
                     try {
                         for (int r; (r = c.read(b)) != -1; count += r) {
-                            adder.add(1L);
-                            if (escape && adder.sum() == 3L) {
+//                            log.debug("r: {}", r);
+                            b.clear();
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                    return count;
+                },
+                () -> null
+        )
+                .block();
+        assertNotNull(actual);
+        assertEquals(expected, actual.longValue());
+    }
+
+    @MethodSource({"sourceResponseSpec"})
+    @ParameterizedTest
+    public void testPipeBodyAndApplyEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+        final LongAdder adder = new LongAdder();
+        final Long actual = pipeBodyAndApply(
+                responseSpec,
+                newSingleThreadExecutor(),
+                (c, u) -> {
+                    assertNotNull(c);
+                    assertNull(u);
+                    long count = 0L;
+                    final ByteBuffer b = allocate(128);
+                    try {
+                        for (int r; (r = c.read(b)) != -1; count += r) {
+                            if (current().nextBoolean()) {
                                 break;
                             }
 //                            log.debug("r: {}", r);
@@ -264,28 +290,50 @@ public class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNotNull(actual);
-        if (!escape) {
-            assertEquals(expected, actual.longValue());
-        }
+        assertTrue(actual <= expected);
     }
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
     public void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final LongAdder adder = new LongAdder();
-        final boolean escape = true;
         final Void v = pipeBodyAndAccept(
                 responseSpec,
                 newSingleThreadExecutor(),
                 (c, u) -> {
                     assertNotNull(c);
                     assertNull(u);
-                    long count = 0L;
+                    long actual = 0L;
                     final ByteBuffer b = allocate(128);
                     try {
-                        for (int r; (r = c.read(b)) != -1; count += r) {
-                            adder.add(1L);
-                            if (escape && adder.sum() == 3L) {
+                        for (int r; (r = c.read(b)) != -1; actual += r) {
+//                            log.debug("r: {}", r);
+                            b.clear();
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                    assertEquals(expected, actual);
+                },
+                () -> null
+        )
+                .block();
+        assertNull(v);
+    }
+
+    @MethodSource({"sourceResponseSpec"})
+    @ParameterizedTest
+    public void testPipeBodyAndAcceptEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+        final Void v = pipeBodyAndAccept(
+                responseSpec,
+                newSingleThreadExecutor(),
+                (c, u) -> {
+                    assertNotNull(c);
+                    assertNull(u);
+                    long actual = 0L;
+                    final ByteBuffer b = allocate(128);
+                    try {
+                        for (int r; (r = c.read(b)) != -1; actual += r) {
+                            if (current().nextBoolean()) {
                                 break;
                             }
 //                            log.debug("r: {}", r);
@@ -294,11 +342,7 @@ public class JinahyaResponseSpecUtilsTest {
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
-                    if (!escape) {
-                        assertEquals(expected, count);
-                    } else {
-                        assertTrue(expected >= count);
-                    }
+                    assertTrue(actual <= expected);
                 },
                 () -> null
         )

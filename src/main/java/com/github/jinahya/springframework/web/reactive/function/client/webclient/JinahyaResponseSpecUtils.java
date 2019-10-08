@@ -2,7 +2,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 
 /*-
  * #%L
- * jinahya-springframework
+ * jinahya-spring-framework
  * %%
  * Copyright (C) 2019 Jinahya, Inc.
  * %%
@@ -22,32 +22,23 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static java.nio.channels.FileChannel.open;
-import static java.nio.file.Files.createTempFile;
-import static java.nio.file.Files.deleteIfExists;
-import static java.nio.file.StandardOpenOption.READ;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.function.Function.identity;
-import static org.springframework.core.io.buffer.DataBufferUtils.write;
-import static reactor.core.publisher.Mono.just;
-import static reactor.core.publisher.Mono.using;
 
 /**
  * Utilities for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
@@ -71,7 +62,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
                                                       final Function<? super Path, ? extends R> function) {
-        return write(response.bodyToFlux(DataBuffer.class), file).thenReturn(file).map(function);
+        return writeAndApply(response.bodyToFlux(DataBuffer.class), file, function);
     }
 
     /**
@@ -147,26 +138,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec response, final Function<? super ReadableByteChannel, ? extends R> function) {
-        return using(
-                () -> createTempFile(null, null),
-                t -> writeBodyToFileAndApply(response, t, f -> {
-                    try {
-                        try (ReadableByteChannel channel = open(f, READ)) {
-                            return function.apply(channel);
-                        }
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }),
-                t -> {
-                    try {
-                        final boolean deleted = deleteIfExists(t);
-                        //assert deleted;
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
+        return writeToTempFileAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
     /**
@@ -241,42 +213,7 @@ public final class JinahyaResponseSpecUtils {
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final ExecutorService executor,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
-        return using(
-                Pipe::open,
-                p -> {
-                    final Future<Disposable> future = executor.submit(
-                            () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-//                                    .log()
-                                    .doFinally(s -> {
-                                        try {
-                                            p.sink().close();
-                                            log.trace("p.sink closed");
-                                        } catch (final IOException ioe) {
-                                            throw new RuntimeException(ioe);
-                                        }
-                                    })
-                                    .subscribe(DataBufferUtils.releaseConsumer())
-                    );
-                    return just(function.apply(p.source()))
-//                            .log()
-                            .doFinally(s -> {
-                                try {
-                                    final Disposable disposable = future.get();
-                                    log.trace("disposable.disposed: {}", disposable.isDisposed());
-                                } catch (InterruptedException | ExecutionException e) {
-                                    e.printStackTrace();
-                                }
-                            });
-                },
-                p -> {
-                    try {
-                        p.source().close();
-                        log.trace("p.source closed");
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
+        return pipeAndApply(response.bodyToFlux(DataBuffer.class), executor, function);
     }
 
     /**

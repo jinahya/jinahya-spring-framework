@@ -1,4 +1,4 @@
-package com.github.jinahya.springframework.web.reactive.function.client.webclient;
+package com.github.jinahya.springframework.core.io.buffer;
 
 /*-
  * #%L
@@ -20,29 +20,30 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
-import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest;
+import com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndAccept;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndApply;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndAccept;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndApply;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndAccept;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndAccept;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static java.lang.Runtime.getRuntime;
 import static java.nio.ByteBuffer.allocate;
 import static java.nio.file.Files.createTempFile;
@@ -51,53 +52,54 @@ import static java.nio.file.Files.exists;
 import static java.nio.file.Files.size;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A class for testing {@link JinahyaResponseSpecUtils}.
  */
 @Slf4j
-class JinahyaResponseSpecUtilsTest {
+public class JinahyaDataBufferUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
 
-    @SuppressWarnings(value = {"unchecked"})
-    private static Stream<Arguments> sourceResponseSpec() {
-        return JinahyaDataBufferUtilsTest.sourceDataBuffers().map(args -> {
-            final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn((Flux<DataBuffer>) args.get()[0]);
-            return Arguments.of(responseSpec, args.get()[1]);
-        });
+    private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
+
+    public static Stream<Arguments> sourceDataBuffers() {
+        final LongAdder adder = new LongAdder();
+        final Flux<DataBuffer> buffers = Flux.just(
+                IntStream.range(0, current().nextInt(1, 128))
+                        .mapToObj(i -> {
+                                      final int capacity = current().nextInt(1024);
+                                      adder.add(capacity);
+                                      return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
+                                  }
+                        )
+                        .toArray(DataBuffer[]::new)
+        );
+        return Stream.of(Arguments.of(buffers, adder.sum()));
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void checkTotalSize(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = responseSpec.bodyToFlux(DataBuffer.class)
-                .reduce(0L, (a, b) -> a + b.readableByteCount()).block();
+    void checkTotalSize(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = buffers.reduce(0L, (a, b) -> a + b.readableByteCount()).block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        Assertions.assertEquals(expected, actual.longValue());
     }
 
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction,
-     * Supplier)} method.
+     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
      *
-     * @param response a response spec
+     * @param buffers a stream of data buffers.
      * @throws IOException if an I/O error occurs.
      */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected)
-            throws IOException {
+    void testWriteAndApply(final Flux<DataBuffer> buffers, final long expected) throws IOException {
         final Path file = createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -106,8 +108,8 @@ class JinahyaResponseSpecUtilsTest {
                 throw new RuntimeException(ioe);
             }
         }));
-        final Long actual = writeBodyToFileAndApply(
-                response,
+        final Long actual = writeAndApply(
+                buffers,
                 file,
                 (f, u) -> {
                     try {
@@ -120,13 +122,12 @@ class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        Assertions.assertEquals(expected, actual.longValue());
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected)
-            throws IOException {
+    void testWriteAndAccept(final Flux<DataBuffer> buffers, final long expected) throws IOException {
         final Path file = createTempFile(null, null);
         getRuntime().addShutdownHook(new Thread(() -> {
             try {
@@ -135,15 +136,15 @@ class JinahyaResponseSpecUtilsTest {
                 throw new RuntimeException(ioe);
             }
         }));
-        final Void v = writeBodyToFileAndAccept(
-                response,
+        final Void v = writeAndAccept(
+                buffers,
                 file,
                 (f, u) -> {
                     try {
                         final long actual = size(f);
-                        assertEquals(expected, actual);
+                        Assertions.assertEquals(expected, actual);
                     } catch (final IOException ioe) {
-                        fail(ioe);
+                        Assertions.fail(ioe);
                     }
                 },
                 () -> null
@@ -153,26 +154,18 @@ class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndApply(WebClient.ResponseSpec, BiFunction, Supplier)}
-     * method.
-     *
-     * @param responseSpec a response spec to test with.
-     * @param expected     an expected total size of bytes.
-     */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = writeBodyToTempFileAndApply(
-                responseSpec,
-                (channel, u) -> {
-                    assertNotNull(channel);
+    void testWriteToTempFileAndApply(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = JinahyaDataBufferUtils.writeToTempFileAndApply(
+                buffers,
+                (c, u) -> {
+                    assertNotNull(c);
                     assertNull(u);
                     long count = 0L;
                     final ByteBuffer b = allocate(1024);
                     try {
-                        for (int r; (r = channel.read(b)) != -1; count += r) {
+                        for (int r; (r = c.read(b)) != -1; count += r) {
                             b.clear();
                         }
                     } catch (final IOException ioe) {
@@ -184,21 +177,14 @@ class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        Assertions.assertEquals(expected, actual.longValue());
     }
 
-    /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)}
-     * method.
-     *
-     * @param responseSpec a response spec to test with.
-     * @param expected     an expected total size of bytes.
-     */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Void v = writeBodyToTempFileAndAccept(
-                responseSpec,
+    void testWriteToTempFileAndAccept(final Flux<DataBuffer> buffers, final long expected) {
+        final Void v = JinahyaDataBufferUtils.writeToTempFileAndAccept(
+                buffers,
                 (c, u) -> {
                     assertNotNull(c);
                     assertNull(u);
@@ -211,7 +197,7 @@ class JinahyaResponseSpecUtilsTest {
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
-                    assertEquals(expected, actual);
+                    Assertions.assertEquals(expected, actual);
                 },
                 () -> null
         )
@@ -220,11 +206,11 @@ class JinahyaResponseSpecUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = pipeBodyAndApply(
-                responseSpec,
+    void testPipeAndApply(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = pipeAndApply(
+                buffers,
                 newSingleThreadExecutor(),
                 (c, u) -> {
                     assertNotNull(c);
@@ -233,7 +219,6 @@ class JinahyaResponseSpecUtilsTest {
                     final ByteBuffer b = allocate(128);
                     try {
                         for (int r; (r = c.read(b)) != -1; count += r) {
-//                            log.debug("r: {}", r);
                             b.clear();
                         }
                     } catch (final IOException ioe) {
@@ -245,14 +230,14 @@ class JinahyaResponseSpecUtilsTest {
         )
                 .block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        Assertions.assertEquals(expected, actual.longValue());
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeBodyAndApplyEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = pipeBodyAndApply(
-                responseSpec,
+    void testPipeAndApplyEscape(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = pipeAndApply(
+                buffers,
                 newSingleThreadExecutor(),
                 (c, u) -> {
                     assertNotNull(c);
@@ -278,11 +263,11 @@ class JinahyaResponseSpecUtilsTest {
         assertTrue(actual <= expected);
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Void v = pipeBodyAndAccept(
-                responseSpec,
+    void testPipeAndAccept(final Flux<DataBuffer> buffers, final long expected) {
+        final Void v = pipeAndAccept(
+                buffers,
                 newSingleThreadExecutor(),
                 (c, u) -> {
                     assertNotNull(c);
@@ -296,7 +281,7 @@ class JinahyaResponseSpecUtilsTest {
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
-                    assertEquals(expected, actual);
+                    Assertions.assertEquals(expected, actual);
                 },
                 () -> null
         )
@@ -304,11 +289,11 @@ class JinahyaResponseSpecUtilsTest {
         assertNull(v);
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeBodyAndAcceptEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Void v = pipeBodyAndAccept(
-                responseSpec,
+    void testPipeAndAcceptEscape(final Flux<DataBuffer> buffers, final long expected) {
+        final Void v = pipeAndAccept(
+                buffers,
                 newSingleThreadExecutor(),
                 (c, u) -> {
                     assertNotNull(c);

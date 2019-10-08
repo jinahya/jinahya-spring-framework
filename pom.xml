@@ -9,7 +9,7 @@
     <version>0.8.3</version>
   </parent>
 
-  <artifactId>jinahya-springframework</artifactId>
+  <artifactId>jinahya-spring-framework</artifactId>
   <version>0.0.7-SNAPSHOT</version>
   <packaging>jar</packaging>
 

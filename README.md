@@ -1,6 +1,6 @@
 # jinahya-spring-framework
 
-[![GitHub Action](https://github.com/jinahya/jinahya-spring-framework/workflows/Java%20CI/badge.svg)]
+[![GitHub Action](https://github.com/jinahya/jinahya-spring-framework/workflows/Java%20CI/badge.svg)](https://github.com/jinahya/jinahya-spring-framework/actions?workflow=Java+CI)
 [![CircleCI](https://circleci.com/gh/jinahya/jinahya-spring-framework/tree/develop.svg?style=svg)](https://circleci.com/gh/jinahya/jinahya-spring-framework/tree/develop)
 [![Build Status](https://travis-ci.org/jinahya/jinahya-spring-framework.svg?branch=develop)](https://travis-ci.org/jinahya/jinahya-spring-framework)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=com.github.jinahya%3Ajinahya-springframework%3Adevelop&metric=alert_status)](https://sonarcloud.io/dashboard?id=com.github.jinahya%3Ajinahya-springframework%3Adevelop)

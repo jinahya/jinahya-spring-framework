@@ -170,13 +170,11 @@ public final class JinahyaResponseSpecUtils {
      */
     public static Mono<Void> writeBodyToTempFileAndAccept(final WebClient.ResponseSpec response,
                                                           final Consumer<? super ReadableByteChannel> consumer) {
-        return writeBodyToTempFileAndApply(
-                response,
-                c -> {
-                    consumer.accept(c);
-                    return c; // returning null is not welcome
-                }
-        )
+        return writeBodyToTempFileAndApply(response,
+                                           c -> {
+                                               consumer.accept(c);
+                                               return c; // returning null is not welcome
+                                           })
                 .then();
     }
 
@@ -212,7 +210,7 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
-                                        final Function<? super Pipe.SourceChannel, ? extends R> function) {
+                                        final Function<? super ReadableByteChannel, ? extends R> function) {
         return pipeAndApply(response.bodyToFlux(DataBuffer.class), executor, function);
     }
 
@@ -247,13 +245,12 @@ public final class JinahyaResponseSpecUtils {
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                         final Consumer<? super ReadableByteChannel> consumer) {
-        return pipeBodyAndApply(
-                response,
-                executor,
-                c -> {
-                    consumer.accept(c);
-                    return c;
-                })
+        return pipeBodyAndApply(response,
+                                executor,
+                                c -> {
+                                    consumer.accept(c);
+                                    return c;
+                                })
                 .then();
     }
 
@@ -322,12 +319,11 @@ public final class JinahyaResponseSpecUtils {
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                         final Consumer<? super ReadableByteChannel> consumer) {
-        return pipeBodyAndApply(
-                response,
-                c -> {
-                    consumer.accept(c);
-                    return c;
-                })
+        return pipeBodyAndApply(response,
+                                c -> {
+                                    consumer.accept(c);
+                                    return c;
+                                })
                 .then();
     }
 

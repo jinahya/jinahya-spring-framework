@@ -254,7 +254,7 @@ public final class JinahyaDataBufferUtils {
      * @see #pipeAndApply(Publisher, Executor, BiFunction, Supplier)
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final Executor executor,
-                                           final Function<? super Pipe.SourceChannel, ? extends R> function) {
+                                           final Function<? super ReadableByteChannel, ? extends R> function) {
         return using(
                 Pipe::open,
                 p -> {
@@ -311,14 +311,12 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                            final Consumer<? super ReadableByteChannel> consumer) {
-        return pipeAndApply(
-                source,
-                executor,
-                c -> {
-                    consumer.accept(c);
-                    return c;
-                }
-        )
+        return pipeAndApply(source,
+                            executor,
+                            c -> {
+                                consumer.accept(c);
+                                return c;
+                            })
                 .then();
     }
 
@@ -355,27 +353,25 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
                                            final Function<? super Pipe.SourceChannel, ? extends R> function) {
-        return using(
-                Pipe::open,
-                p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                        .doOnSubscribe(s -> write(source, p.sink())
-                                .doFinally(st -> {
-                                    try {
-                                        p.sink().close();
-                                    } catch (final IOException ioe) {
-                                        throw new RuntimeException(ioe);
-                                    }
-                                })
-                                .subscribe(DataBufferUtils.releaseConsumer())
-                        ),
-                p -> {
-                    try {
-                        p.source().close();
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
+        return using(Pipe::open,
+                     p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
+                             .doOnSubscribe(s -> write(source, p.sink())
+                                     .doFinally(st -> {
+                                         try {
+                                             p.sink().close();
+                                         } catch (final IOException ioe) {
+                                             throw new RuntimeException(ioe);
+                                         }
+                                     })
+                                     .subscribe(DataBufferUtils.releaseConsumer())
+                             ),
+                     p -> {
+                         try {
+                             p.source().close();
+                         } catch (final IOException ioe) {
+                             throw new RuntimeException(ioe);
+                         }
+                     });
     }
 
     /**
@@ -407,12 +403,11 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
                                            final Consumer<? super ReadableByteChannel> consumer) {
-        return pipeAndApply(
-                source,
-                c -> {
-                    consumer.accept(c);
-                    return c;
-                })
+        return pipeAndApply(source,
+                            c -> {
+                                consumer.accept(c);
+                                return c;
+                            })
                 .then();
     }
 

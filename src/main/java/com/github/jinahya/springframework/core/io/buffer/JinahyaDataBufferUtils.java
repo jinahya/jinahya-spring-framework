@@ -158,27 +158,25 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> writeToTempFileAndApply(
             final Publisher<DataBuffer> source, final Function<? super ReadableByteChannel, ? extends R> function) {
-        return using(
-                () -> createTempFile(null, null),
-                t -> writeAndApply(source, t, f -> {
-                    try {
-                        try (ReadableByteChannel channel = open(f, READ)) {
-                            return function.apply(channel);
-                        }
-                    } catch (final IOException ioe) {
-                        log.error("failed to apply channel", ioe);
-                        throw new RuntimeException(ioe);
-                    }
-                }),
-                t -> {
-                    try {
-                        deleteIfExists(t);
-                    } catch (final IOException ioe) {
-                        log.error("failed to delete temporary file: {}", t);
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
+        return using(() -> createTempFile(null, null),
+                     t -> writeAndApply(source, t, f -> {
+                         try {
+                             try (ReadableByteChannel channel = open(f, READ)) {
+                                 return function.apply(channel);
+                             }
+                         } catch (final IOException ioe) {
+                             log.error("failed to apply channel", ioe);
+                             throw new RuntimeException(ioe);
+                         }
+                     }),
+                     t -> {
+                         try {
+                             deleteIfExists(t);
+                         } catch (final IOException ioe) {
+                             log.error("failed to delete temporary file: {}", t);
+                             throw new RuntimeException(ioe);
+                         }
+                     });
     }
 
     /**
@@ -212,13 +210,11 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> writeToTempFileAndAccept(final Publisher<DataBuffer> source,
                                                       final Consumer<? super ReadableByteChannel> consumer) {
-        return writeToTempFileAndApply(
-                source,
-                c -> {
-                    consumer.accept(c);
-                    return c; // returning null is not welcome
-                }
-        )
+        return writeToTempFileAndApply(source,
+                                       c -> {
+                                           consumer.accept(c);
+                                           return c; // returning null is not welcome
+                                       })
                 .then();
     }
 

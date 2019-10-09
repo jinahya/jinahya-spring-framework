@@ -81,11 +81,7 @@ public final class JinahyaResponseSpecUtils {
     public static <U, R> Mono<R> writeBodyToFileAndApply(
             final WebClient.ResponseSpec response, final Path file,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
-        return writeBodyToFileAndApply(
-                response,
-                file,
-                f -> function.apply(f, supplier.get())
-        );
+        return writeBodyToFileAndApply(response, file, f -> function.apply(f, supplier.get()));
     }
 
     /**

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -45,7 +46,6 @@
     <maven.compiler.testSource>${maven.compiler.source}</maven.compiler.testSource>
     <maven.compiler.testTarget>${maven.compiler.testSource}</maven.compiler.testTarget>
     <maven.javadoc.failOnError>false</maven.javadoc.failOnError> <!-- no public or protected classes found to document -->
-    <version.com.fasterxml.jackson.core>2.10.0.pr3</version.com.fasterxml.jackson.core>
     <version.maven-failsafe>${version.maven-surefire}</version.maven-failsafe>
     <version.maven-surefire>3.0.0-M3</version.maven-surefire>
     <version.org.junit.jupiter>5.5.2</version.org.junit.jupiter>
@@ -62,13 +62,6 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-      <!--      <dependency>-->
-      <!--        <groupId>org.springframework.data</groupId>-->
-      <!--        <artifactId>spring-data-releasetrain</artifactId>-->
-      <!--        <version>Lovelace-SR11</version>-->
-      <!--        <type>pom</type>-->
-      <!--        <scope>import</scope>-->
-      <!--      </dependency>-->
     </dependencies>
   </dependencyManagement>
   <dependencies>
@@ -84,18 +77,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>com.fasterxml.jackson.core</groupId>-->
-    <!--      <artifactId>jackson-core</artifactId>-->
-    <!--      <version>${version.com.fasterxml.jackson.core}</version>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
-    <!--    <dependency>-->
-    <!--      <groupId>com.fasterxml.jackson.core</groupId>-->
-    <!--      <artifactId>jackson-databind</artifactId>-->
-    <!--      <version>${version.com.fasterxml.jackson.core}</version>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
@@ -150,50 +131,17 @@
       <version>1.7.26</version>
       <scope>provided</scope>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>org.springframework</groupId>-->
-    <!--      <artifactId>spring-aop</artifactId>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
-    <!--    <dependency>-->
-    <!--      <groupId>org.springframework</groupId>-->
-    <!--      <artifactId>spring-core</artifactId>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-context</artifactId>
       <scope>provided</scope>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>org.springframework</groupId>-->
-    <!--      <artifactId>spring-web</artifactId>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
     <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-webflux</artifactId>
       <scope>provided</scope>
     </dependency>
-    <!--    <dependency>-->
-    <!--      <groupId>org.springframework.data</groupId>-->
-    <!--      <artifactId>spring-data-commons</artifactId>-->
-    <!--      <scope>provided</scope>-->
-    <!--    </dependency>-->
   </dependencies>
-
-  <repositories>
-    <repository>
-      <id>spring.release</id>
-      <url>http://repo.spring.io/release</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
 
   <build>
     <pluginManagement>

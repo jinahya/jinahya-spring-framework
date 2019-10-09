@@ -281,6 +281,7 @@ public final class JinahyaDataBufferUtils {
      * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param function the function to be applied with the body channel.
      * @param supplier the supplier for the second argument of the function.
+     * @param <U>      second argument type parameter
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see #pipeAndApply(Publisher, Executor, Function)
@@ -374,6 +375,7 @@ public final class JinahyaDataBufferUtils {
      * @param source   the stream of data buffers to be piped.
      * @param function the function to be applied with the body channel.
      * @param supplier the supplier for the second argument of the function.
+     * @param <U>      second argument type parameter
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see #pipeAndApply(Publisher, Function)

@@ -202,7 +202,7 @@ public final class JinahyaResponseSpecUtils {
      * Pipe#sink()}.
      *
      * @param response the response spec whose body is piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param function the function to be applied with the body channel.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
@@ -219,7 +219,7 @@ public final class JinahyaResponseSpecUtils {
      * Pipe#sink()} and a second argument from specified supplier.
      *
      * @param response the response spec whose body is piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param function the function to be applied with the body channel.
      * @param supplier the supplier for the second argument of the function.
      * @param <R>      result type parameter
@@ -237,7 +237,7 @@ public final class JinahyaResponseSpecUtils {
      * Pipes given response spec's body and accepts the {@link Pipe#sink()} to specified consumer.
      *
      * @param response the response spec whose body is piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param consumer the consumer to be accepted with the body channel.
      * @return a mono of {@link Void}.
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
@@ -259,7 +259,7 @@ public final class JinahyaResponseSpecUtils {
      * supplier, to specified consumer.
      *
      * @param response the response spec whose body is piped.
-     * @param executor an executor service for piping the body.
+     * @param executor an executor for piping the body.
      * @param consumer the consumer to be accepted with the body stream.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
@@ -286,7 +286,7 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
-                                        final Function<? super Pipe.SourceChannel, ? extends R> function) {
+                                        final Function<? super ReadableByteChannel, ? extends R> function) {
         return pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 

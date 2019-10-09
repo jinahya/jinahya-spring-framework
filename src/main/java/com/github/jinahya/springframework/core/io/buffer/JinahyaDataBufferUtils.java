@@ -246,7 +246,7 @@ public final class JinahyaDataBufferUtils {
      * Pipe#sink()}.
      *
      * @param source   the stream of data buffers to be piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param function the function to be applied with the body channel.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
@@ -255,29 +255,26 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final Executor executor,
                                            final Function<? super ReadableByteChannel, ? extends R> function) {
-        return using(
-                Pipe::open,
-                p -> {
-                    executor.execute(() -> write(source, p.sink())
-                            .doFinally(s -> {
-                                try {
-                                    p.sink().close();
-                                } catch (final IOException ioe) {
-                                    throw new RuntimeException(ioe);
-                                }
-                            })
-                            .subscribe(DataBufferUtils.releaseConsumer())
-                    );
-                    return just(function.apply(p.source()));
-                },
-                p -> {
-                    try {
-                        p.source().close();
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
+        return using(Pipe::open,
+                     p -> {
+                         executor.execute(() -> write(source, p.sink())
+                                 .doFinally(s -> {
+                                     try {
+                                         p.sink().close();
+                                     } catch (final IOException ioe) {
+                                         throw new RuntimeException(ioe);
+                                     }
+                                 })
+                                 .subscribe(DataBufferUtils.releaseConsumer()));
+                         return just(function.apply(p.source()));
+                     },
+                     p -> {
+                         try {
+                             p.source().close();
+                         } catch (final IOException ioe) {
+                             throw new RuntimeException(ioe);
+                         }
+                     });
     }
 
     /**
@@ -285,7 +282,7 @@ public final class JinahyaDataBufferUtils {
      * Pipe#sink()} and a second argument from specified supplier.
      *
      * @param source   the stream of data buffers to be piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param function the function to be applied with the body channel.
      * @param supplier the supplier for the second argument of the function.
      * @param <R>      result type parameter
@@ -303,7 +300,7 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
      *
      * @param source   the stream of data buffers to be piped.
-     * @param executor an executor service for writing the body to {@link Pipe#sink()}.
+     * @param executor an executor for writing the body to {@link Pipe#sink()}.
      * @param consumer the consumer to be accepted with the body channel.
      * @return a mono of {@link Void}.
      * @see #pipeAndApply(Publisher, Executor, Function)
@@ -325,7 +322,7 @@ public final class JinahyaDataBufferUtils {
      * supplier, to specified consumer.
      *
      * @param source   the stream of data buffers to be pied.
-     * @param executor an executor service for piping the body.
+     * @param executor an executor for piping the body.
      * @param consumer the consumer to be accepted with the body stream.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
@@ -352,10 +349,11 @@ public final class JinahyaDataBufferUtils {
      * @see #pipeAndApply(Publisher, BiFunction, Supplier)
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
-                                           final Function<? super Pipe.SourceChannel, ? extends R> function) {
+                                           final Function<? super ReadableByteChannel, ? extends R> function) {
+        Mono m;
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                             .doOnSubscribe(s -> write(source, p.sink())
+                             .doFirst(() -> write(source, p.sink())
                                      .doFinally(st -> {
                                          try {
                                              p.sink().close();
@@ -363,8 +361,7 @@ public final class JinahyaDataBufferUtils {
                                              throw new RuntimeException(ioe);
                                          }
                                      })
-                                     .subscribe(DataBufferUtils.releaseConsumer())
-                             ),
+                                     .subscribe(DataBufferUtils.releaseConsumer())),
                      p -> {
                          try {
                              p.source().close();

@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
-import reactor.core.Disposable;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
@@ -263,9 +262,6 @@ public final class JinahyaDataBufferUtils {
                             .doFinally(s -> {
                                 try {
                                     p.sink().close();
-                                    if (log.isTraceEnabled()) {
-                                        log.trace("p.sink closed");
-                                    }
                                 } catch (final IOException ioe) {
                                     throw new RuntimeException(ioe);
                                 }
@@ -277,9 +273,6 @@ public final class JinahyaDataBufferUtils {
                 p -> {
                     try {
                         p.source().close();
-                        if (log.isTraceEnabled()) {
-                            log.trace("p.source closed");
-                        }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
@@ -365,33 +358,19 @@ public final class JinahyaDataBufferUtils {
         return using(
                 Pipe::open,
                 p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                        .doOnSubscribe(s -> {
-                            if (log.isTraceEnabled()) {
-                                log.trace("subscription: {}", s);
-                            }
-                            final Disposable disposable = write(source, p.sink())
-                                    .doFinally(st -> {
-                                        if (log.isTraceEnabled()) {
-                                            log.trace("signalType: {}", st);
-                                        }
-                                        try {
-                                            p.sink().close();
-                                            if (log.isTraceEnabled()) {
-                                                log.trace("p.sink closed");
-                                            }
-                                        } catch (final IOException ioe) {
-                                            throw new RuntimeException(ioe);
-                                        }
-                                    })
-                                    .subscribe(DataBufferUtils.releaseConsumer());
-                        })
-                ,
+                        .doOnSubscribe(s -> write(source, p.sink())
+                                .doFinally(st -> {
+                                    try {
+                                        p.sink().close();
+                                    } catch (final IOException ioe) {
+                                        throw new RuntimeException(ioe);
+                                    }
+                                })
+                                .subscribe(DataBufferUtils.releaseConsumer())
+                        ),
                 p -> {
                     try {
                         p.source().close();
-                        if (log.isTraceEnabled()) {
-                            log.trace("p.source closed");
-                        }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

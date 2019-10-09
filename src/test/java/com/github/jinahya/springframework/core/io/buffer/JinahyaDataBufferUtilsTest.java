@@ -21,9 +21,7 @@ package com.github.jinahya.springframework.core.io.buffer;
  */
 
 import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
-import com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -36,9 +34,11 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -50,23 +50,21 @@ import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBuffe
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
-import static java.nio.ByteBuffer.allocate;
 import static java.nio.file.Files.size;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * A class for testing {@link JinahyaResponseSpecUtils}.
+ * A class for unit-testing {@link JinahyaDataBufferUtils} class.
  *
  * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
 @ExtendWith({TempFileParameterResolver.class})
 @Slf4j
-class JinahyaDataBufferUtilsTest {
+public class JinahyaDataBufferUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -88,6 +86,44 @@ class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+    public static final BiFunction<Path, Object, Long> FR = (f, u) -> {
+        try {
+            return size(f);
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+    };
+
+    public static final BiFunction<ReadableByteChannel, Object, Long> CR = (c, u) -> {
+        long size = 0L;
+        final ByteBuffer b = ByteBuffer.allocate(128);
+        try {
+            for (int r; (r = c.read(b)) != -1; size += r) {
+                b.clear();
+            }
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        return size;
+    };
+
+    public static final BiFunction<ReadableByteChannel, Object, Long> CE = (c, u) -> {
+        long size = 0L;
+        final ByteBuffer b = ByteBuffer.allocate(128);
+        try {
+            for (int r; (r = c.read(b)) != -1; size += r) {
+                if (current().nextBoolean()) {
+                    break;
+                }
+                b.clear();
+            }
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+        return size;
+    };
+
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
@@ -98,17 +134,7 @@ class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testWriteAndApply(final Flux<DataBuffer> buffers, final long expected,
                            @TempFileParameterResolver.TempFile final Path file) {
-        final Long actual = writeAndApply(buffers,
-                                          file,
-                                          (f, u) -> {
-                                              try {
-                                                  return size(f);
-                                              } catch (final IOException ioe) {
-                                                  throw new RuntimeException(ioe);
-                                              }
-                                          },
-                                          () -> null)
-                .block();
+        final Long actual = writeAndApply(buffers, file, FR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -123,42 +149,14 @@ class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testWriteAndAccept(final Flux<DataBuffer> buffers, final long expected,
                             @TempFileParameterResolver.TempFile final Path file) {
-        final Void v = writeAndAccept(buffers,
-                                      file,
-                                      (f, u) -> {
-                                          try {
-                                              final long actual = size(f);
-                                              assertEquals(expected, actual);
-                                          } catch (final IOException ioe) {
-                                              Assertions.fail(ioe);
-                                          }
-                                      },
-                                      () -> null)
-                .block();
-        assertNull(v);
+        writeAndAccept(buffers, file, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testWriteToTempFileAndApply(final Flux<DataBuffer> buffers, final long expected) {
-        final Long actual = writeToTempFileAndApply(buffers,
-                                                    (c, u) -> {
-                                                        assertNotNull(c);
-                                                        assertNull(u);
-                                                        long count = 0L;
-                                                        final ByteBuffer b = allocate(1024);
-                                                        try {
-                                                            for (int r; (r = c.read(b)) != -1; count += r) {
-                                                                b.clear();
-                                                            }
-                                                        } catch (final IOException ioe) {
-                                                            throw new RuntimeException(ioe);
-                                                        }
-                                                        return count;
-                                                    },
-                                                    () -> null)
-                .block();
+        final Long actual = writeToTempFileAndApply(buffers, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -166,48 +164,14 @@ class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testWriteToTempFileAndAccept(final Flux<DataBuffer> buffers, final long expected) {
-        final Void v = writeToTempFileAndAccept(buffers,
-                                                (c, u) -> {
-                                                    assertNotNull(c);
-                                                    assertNull(u);
-                                                    long actual = 0L;
-                                                    final ByteBuffer b = allocate(1024);
-                                                    try {
-                                                        for (int r; (r = c.read(b)) != -1; actual += r) {
-                                                            b.clear();
-                                                        }
-                                                    } catch (final IOException ioe) {
-                                                        throw new RuntimeException(ioe);
-                                                    }
-                                                    assertEquals(expected, actual);
-                                                },
-                                                () -> null)
-                .block();
-        assertNull(v);
+        writeToTempFileAndAccept(buffers, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndApplyWithExecutor(final Flux<DataBuffer> buffers, final long expected) {
-        final Long actual = pipeAndApply(buffers,
-                                         newSingleThreadExecutor(),
-                                         (c, u) -> {
-                                             assertNotNull(c);
-                                             assertNull(u);
-                                             long count = 0L;
-                                             final ByteBuffer b = allocate(128);
-                                             try {
-                                                 for (int r; (r = c.read(b)) != -1; count += r) {
-                                                     b.clear();
-                                                 }
-                                             } catch (final IOException ioe) {
-                                                 throw new RuntimeException(ioe);
-                                             }
-                                             return count;
-                                         },
-                                         () -> null)
-                .block();
+        final Long actual = pipeAndApply(buffers, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -215,27 +179,7 @@ class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndApplyWithExecutorEscape(final Flux<DataBuffer> buffers, final long expected) {
-        final Long actual = pipeAndApply(buffers,
-                                         newSingleThreadExecutor(),
-                                         (c, u) -> {
-                                             assertNotNull(c);
-                                             assertNull(u);
-                                             long count = 0L;
-                                             final ByteBuffer b = allocate(128);
-                                             try {
-                                                 for (int r; (r = c.read(b)) != -1; count += r) {
-                                                     if (current().nextBoolean()) {
-                                                         break;
-                                                     }
-                                                     b.clear();
-                                                 }
-                                             } catch (final IOException ioe) {
-                                                 throw new RuntimeException(ioe);
-                                             }
-                                             return count;
-                                         },
-                                         () -> null)
-                .block();
+        final Long actual = pipeAndApply(buffers, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
@@ -243,156 +187,43 @@ class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndAcceptWithExecutor(final Flux<DataBuffer> buffers, final long expected) {
-        final Void v = pipeAndAccept(buffers,
-                                     newSingleThreadExecutor(),
-                                     (c, u) -> {
-                                         assertNotNull(c);
-                                         assertNull(u);
-                                         long actual = 0L;
-                                         final ByteBuffer b = allocate(128);
-                                         try {
-                                             for (int r; (r = c.read(b)) != -1; actual += r) {
-//                                                 log.debug("r: {}, actual: {}", r, actual);
-                                                 b.clear();
-                                             }
-                                         } catch (final IOException ioe) {
-                                             throw new RuntimeException(ioe);
-                                         }
-                                         assertEquals(expected, actual);
-                                     },
-                                     () -> null)
+        pipeAndAccept(buffers, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
                 .block();
-        assertNull(v);
     }
 
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndAcceptWithExecutorEscape(final Flux<DataBuffer> buffers, final long expected) {
-        final Void v = pipeAndAccept(buffers,
-                                     newSingleThreadExecutor(),
-                                     (c, u) -> {
-                                         assertNotNull(c);
-                                         assertNull(u);
-                                         long actual = 0L;
-                                         final ByteBuffer b = allocate(128);
-                                         try {
-                                             for (int r; (r = c.read(b)) != -1; actual += r) {
-                                                 if (current().nextBoolean()) {
-                                                     break;
-                                                 }
-                                                 b.clear();
-                                             }
-                                         } catch (final IOException ioe) {
-                                             throw new RuntimeException(ioe);
-                                         }
-                                         assertTrue(actual <= expected);
-                                     },
-                                     () -> null)
+        pipeAndAccept(buffers, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null)
                 .block();
-        assertNull(v);
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndApplyWithoutExecutor(final Flux<DataBuffer> buffers, final long expected) {
-        final Long actual = pipeAndApply(buffers,
-                                         (c, u) -> {
-                                             assertNotNull(c);
-                                             assertNull(u);
-                                             long count = 0L;
-                                             final ByteBuffer b = allocate(128);
-                                             try {
-                                                 for (int r; (r = c.read(b)) != -1; count += r) {
-                                                     b.clear();
-                                                 }
-                                             } catch (final IOException ioe) {
-                                                 throw new RuntimeException(ioe);
-                                             }
-                                             return count;
-                                         },
-                                         () -> null)
-                .block();
+    void testPipeAndApplyWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = pipeAndApply(buffers, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndApplyWithoutExecutorEscape(final Flux<DataBuffer> buffers, final long expected) {
-        final Long actual = pipeAndApply(buffers,
-                                         (c, u) -> {
-                                             assertNotNull(c);
-                                             assertNull(u);
-                                             long count = 0L;
-                                             final ByteBuffer b = allocate(128);
-                                             try {
-                                                 for (int r; (r = c.read(b)) != -1; count += r) {
-                                                     log.debug("r: {}", r);
-                                                     if (current().nextBoolean()) {
-                                                         break;
-                                                     }
-                                                     b.clear();
-                                                 }
-                                             } catch (final IOException ioe) {
-                                                 throw new RuntimeException(ioe);
-                                             }
-                                             return count;
-                                         },
-                                         () -> null)
-                .block();
+    void testPipeAndApplyWithCompletableFutureEscape(final Flux<DataBuffer> buffers, final long expected) {
+        final Long actual = pipeAndApply(buffers, CE, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
 
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndAcceptWithoutExecutor(final Flux<DataBuffer> buffers, final long expected) {
-        final Void v = pipeAndAccept(buffers,
-                                     (c, u) -> {
-                                         assertNotNull(c);
-                                         assertNull(u);
-                                         long actual = 0L;
-                                         final ByteBuffer b = allocate(128);
-                                         try {
-                                             for (int r; (r = c.read(b)) != -1; actual += r) {
-//                                                 log.debug("r: {}, actual: {}", r, actual);
-                                                 b.clear();
-                                             }
-                                         } catch (final IOException ioe) {
-                                             throw new RuntimeException(ioe);
-                                         }
-                                         assertEquals(expected, actual);
-                                     },
-                                     () -> null)
-                .block();
-        assertNull(v);
+    void testPipeAndAcceptWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {
+        pipeAndAccept(buffers, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndAcceptWithoutExecutorEscape(final Flux<DataBuffer> buffers, final long expected) {
-        final Void v = pipeAndAccept(buffers,
-                                     (c, u) -> {
-                                         assertNotNull(c);
-                                         assertNull(u);
-                                         long actual = 0L;
-                                         final ByteBuffer b = allocate(128);
-                                         try {
-                                             for (int r; (r = c.read(b)) != -1; actual += r) {
-                                                 log.debug("r: {}", r);
-                                                 if (current().nextBoolean()) {
-                                                     break;
-                                                 }
-                                                 b.clear();
-                                             }
-                                         } catch (final IOException ioe) {
-                                             throw new RuntimeException(ioe);
-                                         }
-                                         assertTrue(actual <= expected);
-                                     },
-                                     () -> null)
-                .block();
-        assertNull(v);
+    void testPipeAndAcceptWithCompletableFutureEscape(final Flux<DataBuffer> buffers, final long expected) {
+        pipeAndAccept(buffers, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
     }
 }

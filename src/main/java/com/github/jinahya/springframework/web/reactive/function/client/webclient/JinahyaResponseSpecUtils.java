@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -41,7 +41,7 @@ import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBuffe
 import static java.util.function.Function.identity;
 
 /**
- * Utilities for {@link org.springframework.web.reactive.function.client.WebClient.ResponseSpec}.
+ * Utilities for {@link WebClient.ResponseSpec}.
  *
  * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
@@ -209,10 +209,10 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, BiConsumer, Supplier)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      */
-    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final ExecutorService executor,
-                                        final Function<? super ReadableByteChannel, ? extends R> function) {
+    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
+                                        final Function<? super Pipe.SourceChannel, ? extends R> function) {
         return pipeAndApply(response.bodyToFlux(DataBuffer.class), executor, function);
     }
 
@@ -226,10 +226,10 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument of the function.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, Function)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
      */
     static <U, R> Mono<R> pipeBodyAndApply(
-            final WebClient.ResponseSpec response, final ExecutorService executor,
+            final WebClient.ResponseSpec response, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
         return pipeBodyAndApply(response, executor, c -> function.apply(c, supplier.get()));
@@ -242,10 +242,10 @@ public final class JinahyaResponseSpecUtils {
      * @param executor an executor service for writing the body to {@link Pipe#sink()}.
      * @param consumer the consumer to be accepted with the body channel.
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, Function)
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, BiConsumer, Supplier)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      */
-    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,
+    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                         final Consumer<? super ReadableByteChannel> consumer) {
         return pipeBodyAndApply(
                 response,
@@ -253,8 +253,7 @@ public final class JinahyaResponseSpecUtils {
                 c -> {
                     consumer.accept(c);
                     return c;
-                }
-        )
+                })
                 .then();
     }
 
@@ -268,13 +267,86 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, ExecutorService, BiFunction, Supplier)
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, ExecutorService, Consumer)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */
-    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final ExecutorService executor,
+    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                             final Supplier<? extends U> supplier) {
         return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Pipes given response spec's body and returns the result of specified function applied with the {@link
+     * Pipe#sink()}.
+     *
+     * @param response the response spec whose body is piped.
+     * @param function the function to be applied with the body channel.
+     * @param <R>      result type parameter
+     * @return a mono of result of the function.
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     */
+    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
+                                        final Function<? super Pipe.SourceChannel, ? extends R> function) {
+        return pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
+    }
+
+    /**
+     * Pipes given response spec's body and returns the result of specified function applied with the {@link
+     * Pipe#sink()} and a second argument from specified supplier.
+     *
+     * @param response the response spec whose body is piped.
+     * @param function the function to be applied with the body channel.
+     * @param supplier the supplier for the second argument of the function.
+     * @param <R>      result type parameter
+     * @return a mono of result of the function.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
+     */
+    static <U, R> Mono<R> pipeBodyAndApply(
+            final WebClient.ResponseSpec response,
+            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
+            final Supplier<? extends U> supplier) {
+        return pipeBodyAndApply(response, c -> function.apply(c, supplier.get()));
+    }
+
+    /**
+     * Pipes given response spec's body and accepts the {@link Pipe#sink()} to specified consumer.
+     *
+     * @param response the response spec whose body is piped.
+     * @param consumer the consumer to be accepted with the body channel.
+     * @return a mono of {@link Void}.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     */
+    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
+                                        final Consumer<? super ReadableByteChannel> consumer) {
+        return pipeBodyAndApply(
+                response,
+                c -> {
+                    consumer.accept(c);
+                    return c;
+                })
+                .then();
+    }
+
+    /**
+     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument from specified
+     * supplier, to specified consumer.
+     *
+     * @param response the response spec whose body is piped.
+     * @param consumer the consumer to be accepted with the body stream.
+     * @param supplier the supplier for the second argument.
+     * @param <U>      second argument type parameter
+     * @return a mono of {@link Void}.
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Consumer)
+     */
+    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
+                                            final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+                                            final Supplier<? extends U> supplier) {
+        return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

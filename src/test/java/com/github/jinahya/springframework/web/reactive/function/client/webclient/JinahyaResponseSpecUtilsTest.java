@@ -20,21 +20,27 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
-import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest;
+import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndAccept;
@@ -43,11 +49,7 @@ import static com.github.jinahya.springframework.web.reactive.function.client.we
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndApply;
-import static java.lang.Runtime.getRuntime;
 import static java.nio.ByteBuffer.allocate;
-import static java.nio.file.Files.createTempFile;
-import static java.nio.file.Files.deleteIfExists;
-import static java.nio.file.Files.exists;
 import static java.nio.file.Files.size;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
@@ -57,32 +59,34 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * A class for testing {@link JinahyaResponseSpecUtils}.
+ *
+ * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
+@ExtendWith({TempFileParameterResolver.class})
 @Slf4j
 class JinahyaResponseSpecUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
+    private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
-    @SuppressWarnings(value = {"unchecked"})
     private static Stream<Arguments> sourceResponseSpec() {
-        return JinahyaDataBufferUtilsTest.sourceDataBuffers().map(args -> {
-            final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-            when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn((Flux<DataBuffer>) args.get()[0]);
-            return Arguments.of(responseSpec, args.get()[1]);
-        });
-    }
-
-    @MethodSource({"sourceResponseSpec"})
-    @ParameterizedTest
-    void checkTotalSize(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = responseSpec.bodyToFlux(DataBuffer.class)
-                .reduce(0L, (a, b) -> a + b.readableByteCount()).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        final LongAdder adder = new LongAdder();
+        final Flux<DataBuffer> buffers = Flux.just(
+                IntStream.range(0, current().nextInt(1, 128))
+                        .mapToObj(i -> {
+                                      final int capacity = current().nextInt(1024);
+                                      adder.add(capacity);
+                                      return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
+                                  }
+                        )
+                        .toArray(DataBuffer[]::new)
+        );
+        final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
+        Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(buffers);
+        return Stream.of(Arguments.of(responseSpec, adder.sum()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -92,20 +96,11 @@ class JinahyaResponseSpecUtilsTest {
      * Supplier)} method.
      *
      * @param response a response spec
-     * @throws IOException if an I/O error occurs.
      */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected)
-            throws IOException {
-        final Path file = createTempFile(null, null);
-        getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                assertTrue(!exists(file) || deleteIfExists(file));
-            } catch (final IOException ioe) {
-                throw new RuntimeException(ioe);
-            }
-        }));
+    void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected,
+                                     @TempFileParameterResolver.TempFile final Path file) {
         final Long actual = writeBodyToFileAndApply(
                 response,
                 file,
@@ -125,16 +120,8 @@ class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected)
-            throws IOException {
-        final Path file = createTempFile(null, null);
-        getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                assertTrue(!exists(file) || deleteIfExists(file));
-            } catch (final IOException ioe) {
-                throw new RuntimeException(ioe);
-            }
-        }));
+    void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
+                                      @TempFileParameterResolver.TempFile final Path file) {
         final Void v = writeBodyToFileAndAccept(
                 response,
                 file,

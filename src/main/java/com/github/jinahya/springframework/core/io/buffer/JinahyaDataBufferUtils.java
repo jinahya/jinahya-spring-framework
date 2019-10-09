@@ -32,9 +32,7 @@ import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -45,7 +43,10 @@ import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.StandardOpenOption.READ;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
+import static org.springframework.core.io.buffer.DataBufferUtils.write;
+import static reactor.core.publisher.Mono.fromFuture;
 import static reactor.core.publisher.Mono.just;
 import static reactor.core.publisher.Mono.using;
 
@@ -68,9 +69,9 @@ public final class JinahyaDataBufferUtils {
      * @param options     options specifying how the file is opened.
      * @return a {@link Mono} of specified file.
      */
-    public static Mono<Path> write(final Publisher<DataBuffer> source, final Path destination,
-                                   final OpenOption... options) {
-        return DataBufferUtils.write(source, destination, options).thenReturn(destination);
+    private static Mono<Path> writeThenReturn(final Publisher<DataBuffer> source, final Path destination,
+                                              final OpenOption... options) {
+        return write(source, destination, options).thenReturn(destination);
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -87,7 +88,7 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> writeAndApply(final Publisher<DataBuffer> source, final Path destination,
                                             final Function<? super Path, ? extends R> function) {
-        return write(source, destination).map(function);
+        return writeThenReturn(source, destination).map(function);
     }
 
     /**
@@ -106,11 +107,7 @@ public final class JinahyaDataBufferUtils {
     public static <U, R> Mono<R> writeAndApply(
             final Publisher<DataBuffer> source, final Path destination,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
-        return writeAndApply(
-                source,
-                destination,
-                f -> function.apply(f, supplier.get())
-        );
+        return writeAndApply(source, destination, f -> function.apply(f, supplier.get()));
     }
 
     /**
@@ -160,8 +157,8 @@ public final class JinahyaDataBufferUtils {
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
      */
-    public static <R> Mono<R> writeToTempFileAndApply(final Publisher<DataBuffer> source,
-                                                      final Function<? super ReadableByteChannel, ? extends R> function) {
+    public static <R> Mono<R> writeToTempFileAndApply(
+            final Publisher<DataBuffer> source, final Function<? super ReadableByteChannel, ? extends R> function) {
         return using(
                 () -> createTempFile(null, null),
                 t -> writeAndApply(source, t, f -> {
@@ -170,14 +167,15 @@ public final class JinahyaDataBufferUtils {
                             return function.apply(channel);
                         }
                     } catch (final IOException ioe) {
+                        log.error("failed to apply channel", ioe);
                         throw new RuntimeException(ioe);
                     }
                 }),
                 t -> {
                     try {
-                        final boolean deleted = deleteIfExists(t);
-                        //assert deleted;
+                        deleteIfExists(t);
                     } catch (final IOException ioe) {
+                        log.error("failed to delete temporary file: {}", t);
                         throw new RuntimeException(ioe);
                     }
                 }
@@ -194,6 +192,7 @@ public final class JinahyaDataBufferUtils {
      * @param function the function to be applied with the channel and the second argument.
      * @param supplier the supplier for the second argument.
      * @return a mono of the result of the function.
+     * @see #writeToTempFileAndApply(Publisher, Function)
      */
     public static <U, R> Mono<R> writeToTempFileAndApply(
             final Publisher<DataBuffer> source,
@@ -209,6 +208,8 @@ public final class JinahyaDataBufferUtils {
      * @param source   the stream of data buffers to be written to the file.
      * @param consumer the consumer to be accepted with the channel.
      * @return a mono of {@link Void}.
+     * @see #writeToTempFileAndApply(Publisher, Function)
+     * @see #writeToTempFileAndAccept(Publisher, BiConsumer, Supplier)
      */
     public static Mono<Void> writeToTempFileAndAccept(final Publisher<DataBuffer> source,
                                                       final Consumer<? super ReadableByteChannel> consumer) {
@@ -231,6 +232,7 @@ public final class JinahyaDataBufferUtils {
      * @param consumer the consumer to be accepted with the channel and the second argument.
      * @param supplier the supplier for the second argument.
      * @return a mono of {@link Void}.
+     * @see #writeToTempFileAndAccept(Publisher, Consumer)
      */
     public static <U> Mono<Void> writeToTempFileAndAccept(
             final Publisher<DataBuffer> source, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
@@ -250,41 +252,34 @@ public final class JinahyaDataBufferUtils {
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
-     * @see #pipeAndApply(Publisher, ExecutorService, BiFunction, Supplier)
+     * @see #pipeAndApply(Publisher, Executor, BiFunction, Supplier)
      */
-    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final ExecutorService executor,
-                                           final Function<? super ReadableByteChannel, ? extends R> function) {
+    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final Executor executor,
+                                           final Function<? super Pipe.SourceChannel, ? extends R> function) {
         return using(
                 Pipe::open,
                 p -> {
-                    final Future<Disposable> future = executor.submit(
-                            () -> DataBufferUtils.write(source, p.sink())
-//                                    .log()
-                                    .doFinally(s -> {
-                                        try {
-                                            p.sink().close();
-                                            log.trace("p.sink closed");
-                                        } catch (final IOException ioe) {
-                                            throw new RuntimeException(ioe);
-                                        }
-                                    })
-                                    .subscribe(DataBufferUtils.releaseConsumer())
-                    );
-                    return just(function.apply(p.source()))
-//                            .log()
+                    executor.execute(() -> write(source, p.sink())
                             .doFinally(s -> {
                                 try {
-                                    final Disposable disposable = future.get();
-                                    log.trace("disposable.disposed: {}", disposable.isDisposed());
-                                } catch (InterruptedException | ExecutionException e) {
-                                    e.printStackTrace();
+                                    p.sink().close();
+                                    if (log.isTraceEnabled()) {
+                                        log.trace("p.sink closed");
+                                    }
+                                } catch (final IOException ioe) {
+                                    throw new RuntimeException(ioe);
                                 }
-                            });
+                            })
+                            .subscribe(DataBufferUtils.releaseConsumer())
+                    );
+                    return just(function.apply(p.source()));
                 },
                 p -> {
                     try {
                         p.source().close();
-                        log.trace("p.source closed");
+                        if (log.isTraceEnabled()) {
+                            log.trace("p.source closed");
+                        }
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }
@@ -302,10 +297,10 @@ public final class JinahyaDataBufferUtils {
      * @param supplier the supplier for the second argument of the function.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
-     * @see #pipeAndApply(Publisher, ExecutorService, Function)
+     * @see #pipeAndApply(Publisher, Executor, Function)
      */
     public static <U, R> Mono<R> pipeAndApply(
-            final Publisher<DataBuffer> source, final ExecutorService executor,
+            final Publisher<DataBuffer> source, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
         return pipeAndApply(source, executor, c -> function.apply(c, supplier.get()));
@@ -318,10 +313,10 @@ public final class JinahyaDataBufferUtils {
      * @param executor an executor service for writing the body to {@link Pipe#sink()}.
      * @param consumer the consumer to be accepted with the body channel.
      * @return a mono of {@link Void}.
-     * @see #pipeAndApply(Publisher, ExecutorService, Function)
-     * @see #pipeAndAccept(Publisher, ExecutorService, BiConsumer, Supplier)
+     * @see #pipeAndApply(Publisher, Executor, Function)
+     * @see #pipeAndAccept(Publisher, Executor, BiConsumer, Supplier)
      */
-    public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final ExecutorService executor,
+    public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                            final Consumer<? super ReadableByteChannel> consumer) {
         return pipeAndApply(
                 source,
@@ -344,11 +339,119 @@ public final class JinahyaDataBufferUtils {
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
+     * @see #pipeAndAccept(Publisher, Executor, Consumer)
      */
-    public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final ExecutorService executor,
+    public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                                final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                final Supplier<? extends U> supplier) {
         return pipeAndAccept(source, executor, c -> consumer.accept(c, supplier.get()));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
+     * Pipe#sink()}.
+     *
+     * @param source   the stream of data buffers to be piped.
+     * @param function the function to be applied with the body channel.
+     * @param <R>      result type parameter
+     * @return a mono of result of the function.
+     * @see org.springframework.core.task.support.ExecutorServiceAdapter
+     * @see #pipeAndApply(Publisher, BiFunction, Supplier)
+     */
+    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
+                                           final Function<? super Pipe.SourceChannel, ? extends R> function) {
+        return using(
+                Pipe::open,
+                p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
+                        .doOnSubscribe(s -> {
+                            if (log.isTraceEnabled()) {
+                                log.trace("subscription: {}", s);
+                            }
+                            final Disposable disposable = write(source, p.sink())
+                                    .doFinally(st -> {
+                                        if (log.isTraceEnabled()) {
+                                            log.trace("signalType: {}", st);
+                                        }
+                                        try {
+                                            p.sink().close();
+                                            if (log.isTraceEnabled()) {
+                                                log.trace("p.sink closed");
+                                            }
+                                        } catch (final IOException ioe) {
+                                            throw new RuntimeException(ioe);
+                                        }
+                                    })
+                                    .subscribe(DataBufferUtils.releaseConsumer());
+                        })
+                ,
+                p -> {
+                    try {
+                        p.source().close();
+                        if (log.isTraceEnabled()) {
+                            log.trace("p.source closed");
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                }
+        );
+    }
+
+    /**
+     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
+     * Pipe#sink()} and a second argument from specified supplier.
+     *
+     * @param source   the stream of data buffers to be piped.
+     * @param function the function to be applied with the body channel.
+     * @param supplier the supplier for the second argument of the function.
+     * @param <R>      result type parameter
+     * @return a mono of result of the function.
+     * @see #pipeAndApply(Publisher, Function)
+     */
+    public static <U, R> Mono<R> pipeAndApply(
+            final Publisher<DataBuffer> source,
+            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
+            final Supplier<? extends U> supplier) {
+        return pipeAndApply(source, c -> function.apply(c, supplier.get()));
+    }
+
+    /**
+     * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
+     *
+     * @param source   the stream of data buffers to be piped.
+     * @param consumer the consumer to be accepted with the body channel.
+     * @return a mono of {@link Void}.
+     * @see #pipeAndApply(Publisher, Function)
+     * @see #pipeAndAccept(Publisher, BiConsumer, Supplier)
+     */
+    public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
+                                           final Consumer<? super ReadableByteChannel> consumer) {
+        return pipeAndApply(
+                source,
+                c -> {
+                    consumer.accept(c);
+                    return c;
+                })
+                .then();
+    }
+
+    /**
+     * Pipes given stream of data buffers and accepts the {@link Pipe#source()}, along with an argument from specified
+     * supplier, to specified consumer.
+     *
+     * @param source   the stream of data buffers to be pied.
+     * @param consumer the consumer to be accepted with the body stream.
+     * @param supplier the supplier for the second argument.
+     * @param <U>      second argument type parameter
+     * @return a mono of {@link Void}.
+     * @see #pipeAndAccept(Publisher, Consumer)
+     */
+    public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
+                                               final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+                                               final Supplier<? extends U> supplier) {
+        return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

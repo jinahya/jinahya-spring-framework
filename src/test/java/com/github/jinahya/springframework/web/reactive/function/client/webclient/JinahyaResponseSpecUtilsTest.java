@@ -92,7 +92,9 @@ class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction,
      * Supplier)} method.
      *
-     * @param response a response spec
+     * @param response a response spec whose body is written.
+     * @param expected an expected total size of bytes.
+     * @param file     a temporary file to which the body of the response is written.
      */
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest

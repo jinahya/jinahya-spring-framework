@@ -163,6 +163,13 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Test {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, BiFunction, Supplier)} method.
+     *
+     * @param buffers  a stream of data buffers.
+     * @param expected an expected total size of bytes.
+     */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testWriteToTempFileAndApply(final Flux<DataBuffer> buffers, final long expected) {
@@ -171,6 +178,12 @@ public class JinahyaDataBufferUtilsTest {
         assertEquals(expected, actual.longValue());
     }
 
+    /**
+     * Tests {@link JinahyaDataBufferUtils#writeToTempFileAndAccept(Publisher, BiConsumer, Supplier)} method.
+     *
+     * @param buffers  a stream of data buffers.
+     * @param expected an expected total size of bytes.
+     */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testWriteToTempFileAndAccept(final Flux<DataBuffer> buffers, final long expected) {
@@ -209,6 +222,13 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
+
+    /**
+     * Tests {@link JinahyaDataBufferUtils#pipeAndApply(Publisher, BiFunction, Supplier)} method.
+     *
+     * @param buffers  a stream of data buffers.
+     * @param expected an expected total size of bytes.
+     */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndApplyWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {
@@ -225,6 +245,12 @@ public class JinahyaDataBufferUtilsTest {
         assertTrue(actual <= expected);
     }
 
+    /**
+     * Tests {@link JinahyaDataBufferUtils#pipeAndAccept(Publisher, BiConsumer, Supplier)} method.
+     *
+     * @param buffers  a stream of data buffers to pipe.
+     * @param expected an expected total size of bytes.
+     */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndAcceptWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {

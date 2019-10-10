@@ -138,7 +138,9 @@ public class JinahyaDataBufferUtilsTest {
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
      *
-     * @param buffers a stream of data buffers.
+     * @param buffers  a stream of data buffers.
+     * @param expected an expected total size of bytes.
+     * @param file     a temp file to which data buffers are written.
      */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
@@ -154,6 +156,7 @@ public class JinahyaDataBufferUtilsTest {
      *
      * @param buffers  a stream of data buffers.
      * @param expected a total number of bytes of data buffers.
+     * @param file a temp file to which data buffers are written.
      */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest

@@ -38,6 +38,7 @@ import java.util.function.Supplier;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 
 /**
@@ -62,7 +63,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
                                                       final Function<? super Path, ? extends R> function) {
-        return writeAndApply(response.bodyToFlux(DataBuffer.class), file, function);
+        return writeAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), file, function);
     }
 
     /**
@@ -81,6 +82,8 @@ public final class JinahyaResponseSpecUtils {
     public static <U, R> Mono<R> writeBodyToFileAndApply(
             final WebClient.ResponseSpec response, final Path file,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return writeBodyToFileAndApply(response, file, f -> function.apply(f, supplier.get()));
     }
 
@@ -95,6 +98,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
                                                       final Consumer<? super Path> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return writeBodyToFileAndApply(response, file, identity())
                 .map(p -> {
                     consumer.accept(p);
@@ -118,6 +122,8 @@ public final class JinahyaResponseSpecUtils {
     public static <U> Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
                                                           final BiConsumer<? super Path, ? super U> consumer,
                                                           final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return writeBodyToFileAndAccept(response, file, f -> consumer.accept(f, supplier.get()));
     }
 
@@ -134,7 +140,8 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec response, final Function<? super ReadableByteChannel, ? extends R> function) {
-        return writeToTempFileAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return writeToTempFileAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class),
+                                       function);
     }
 
     /**
@@ -153,6 +160,8 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec response,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return writeBodyToTempFileAndApply(response, c -> function.apply(c, supplier.get()));
     }
 
@@ -166,6 +175,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static Mono<Void> writeBodyToTempFileAndAccept(final WebClient.ResponseSpec response,
                                                           final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return writeBodyToTempFileAndApply(response,
                                            c -> {
                                                consumer.accept(c);
@@ -188,6 +198,8 @@ public final class JinahyaResponseSpecUtils {
     public static <U> Mono<Void> writeBodyToTempFileAndAccept(
             final WebClient.ResponseSpec response, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
             final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return writeBodyToTempFileAndAccept(response, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -207,7 +219,8 @@ public final class JinahyaResponseSpecUtils {
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
-        return pipeAndApply(response.bodyToFlux(DataBuffer.class), executor, function);
+        return pipeAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), executor,
+                            function);
     }
 
     /**
@@ -226,6 +239,8 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec response, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndApply(response, executor, c -> function.apply(c, supplier.get()));
     }
 
@@ -241,6 +256,7 @@ public final class JinahyaResponseSpecUtils {
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                         final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return pipeBodyAndApply(response,
                                 executor,
                                 c -> {
@@ -266,6 +282,8 @@ public final class JinahyaResponseSpecUtils {
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                             final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -283,7 +301,7 @@ public final class JinahyaResponseSpecUtils {
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
-        return pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return pipeAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), function);
     }
 
     /**
@@ -301,6 +319,8 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec response,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndApply(response, c -> function.apply(c, supplier.get()));
     }
 
@@ -315,6 +335,7 @@ public final class JinahyaResponseSpecUtils {
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                         final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return pipeBodyAndApply(response,
                                 c -> {
                                     consumer.accept(c);
@@ -338,6 +359,8 @@ public final class JinahyaResponseSpecUtils {
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                             final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));
     }
 

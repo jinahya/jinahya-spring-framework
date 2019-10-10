@@ -42,6 +42,7 @@ import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.StandardOpenOption.READ;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
@@ -76,11 +77,11 @@ public final class JinahyaDataBufferUtils {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Write the given stream of data buffers to the specified file and returns the result of specified function applied
+     * Write given stream of data buffers to the specified file and returns the result of specified function applied
      * with the file.
      *
      * @param source      the stream of data buffers to be written to the file.
-     * @param destination the file to which body of the spec is written.
+     * @param destination the file to which given stream is written.
      * @param function    the function to be applied with the file.
      * @param <R>         result type parameter
      * @return a mono of the result of the function.
@@ -97,7 +98,7 @@ public final class JinahyaDataBufferUtils {
      * @param <U>         second argument type parameter
      * @param <R>         result type parameter
      * @param source      the stream of data buffers to be written to the file.
-     * @param destination the file to which the body of the spec is written.
+     * @param destination the file to which the stream is written.
      * @param function    the function to be applied with the file and the second argument.
      * @param supplier    the supplier for the second argument of the function.
      * @return the value the function results.
@@ -106,6 +107,8 @@ public final class JinahyaDataBufferUtils {
     public static <U, R> Mono<R> writeAndApply(
             final Publisher<DataBuffer> source, final Path destination,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return writeAndApply(source, destination, f -> function.apply(f, supplier.get()));
     }
 
@@ -113,12 +116,13 @@ public final class JinahyaDataBufferUtils {
      * Writes given stream of data buffers to specified file and accepts the file to specified consumer.
      *
      * @param source      the stream of data buffers to be written to the file.
-     * @param destination the file to which the body is written.
+     * @param destination the file to which the stream is written.
      * @param consumer    the consumer to be accepted with the path.
      * @return a mono of {@link Void}.
      */
     public static Mono<Void> writeAndAccept(final Publisher<DataBuffer> source, final Path destination,
                                             final Consumer<? super Path> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return writeAndApply(source, destination, identity())
                 .map(p -> {
                     consumer.accept(p);
@@ -128,12 +132,12 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Writes given response spec's body to specified file and accepts the file, along with an argument supplied by
+     * Writes given stream of data buffers to specified file and accepts the file, along with an argument supplied by
      * specified supplier, to specified consumer.
      *
      * @param <U>         second argument type parameter
      * @param source      the stream of data buffers to be written to the file.
-     * @param destination the file to which the body is written.
+     * @param destination the file to which the stream is written.
      * @param consumer    the consumer to be accepted with the file along with the second argument.
      * @param supplier    the supplier for the second argument.
      * @return a mono of {@link Void}.
@@ -142,6 +146,8 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> writeAndAccept(final Publisher<DataBuffer> source, final Path destination,
                                                 final BiConsumer<? super Path, ? super U> consumer,
                                                 final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return writeAndAccept(source, destination, f -> consumer.accept(f, supplier.get()));
     }
 
@@ -158,6 +164,8 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> writeToTempFileAndApply(
             final Publisher<DataBuffer> source, final Function<? super ReadableByteChannel, ? extends R> function) {
+        requireNonNull(source, "source is null");
+        requireNonNull(function, "function is null");
         return using(() -> createTempFile(null, null),
                      t -> writeAndApply(source, t, f -> {
                          try {
@@ -195,6 +203,8 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return writeToTempFileAndApply(source, c -> function.apply(c, supplier.get()));
     }
 
@@ -210,6 +220,7 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> writeToTempFileAndAccept(final Publisher<DataBuffer> source,
                                                       final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return writeToTempFileAndApply(source,
                                        c -> {
                                            consumer.accept(c);
@@ -219,7 +230,7 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Writes given response spec's body to a temporary path and accept a readable bytes channel from the file, along
+     * Writes given stream of data buffers to a temporary path and accept a readable bytes channel from the file, along
      * with an argument supplied by specified supplier, to specified consumer.
      *
      * @param <U>      second argument type parameter
@@ -232,6 +243,8 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> writeToTempFileAndAccept(
             final Publisher<DataBuffer> source, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
             final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return writeToTempFileAndAccept(source, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -241,9 +254,9 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
      * Pipe#sink()}.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param function the function to be applied with the body channel.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
+     * @param executor an executor for writing the stream to {@link Pipe#sink()}.
+     * @param function the function to be applied with the {@link Pipe#source()}.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
@@ -251,6 +264,9 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final Executor executor,
                                            final Function<? super ReadableByteChannel, ? extends R> function) {
+        requireNonNull(source, "source is null");
+        requireNonNull(executor, "executor is null");
+        requireNonNull(function, "function is null");
         return using(Pipe::open,
                      p -> {
                          executor.execute(() -> write(source, p.sink())
@@ -277,9 +293,9 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
      * Pipe#sink()} and a second argument from specified supplier.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param function the function to be applied with the body channel.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
+     * @param executor an executor for writing the stream to {@link Pipe#sink()}.
+     * @param function the function to be applied with the {@link Pipe#source()}.
      * @param supplier the supplier for the second argument of the function.
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter
@@ -290,21 +306,24 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeAndApply(source, executor, c -> function.apply(c, supplier.get()));
     }
 
     /**
      * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param consumer the consumer to be accepted with the body channel.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
+     * @param executor an executor for writing the stream to {@link Pipe#sink()}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
      * @return a mono of {@link Void}.
      * @see #pipeAndApply(Publisher, Executor, Function)
      * @see #pipeAndAccept(Publisher, Executor, BiConsumer, Supplier)
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                            final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return pipeAndApply(source,
                             executor,
                             c -> {
@@ -318,9 +337,9 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and accepts the {@link Pipe#source()}, along with an argument from specified
      * supplier, to specified consumer.
      *
-     * @param source   the stream of data buffers to be pied.
-     * @param executor an executor for piping the body.
-     * @param consumer the consumer to be accepted with the body stream.
+     * @param source   the stream of data buffers to be pied to {@link Pipe#sink()}.
+     * @param executor an executor for piping the stream to {@link Pipe#sink()}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
@@ -329,6 +348,8 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                                final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeAndAccept(source, executor, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -338,8 +359,8 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
      * Pipe#sink()}.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param function the function to be applied with the body channel.
+     * @param source   the stream of data buffers to be written to {@link Pipe#sink()}.
+     * @param function the function to be applied with the {@link Pipe#source()}.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
@@ -347,7 +368,8 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
                                            final Function<? super ReadableByteChannel, ? extends R> function) {
-        Mono m;
+        requireNonNull(source, "source is null");
+        requireNonNull(function, "function is null");
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
                              .doFirst(() -> write(source, p.sink())
@@ -372,8 +394,8 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
      * Pipe#sink()} and a second argument from specified supplier.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param function the function to be applied with the body channel.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
+     * @param function the function to be applied with the {@link Pipe#source()}.
      * @param supplier the supplier for the second argument of the function.
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter
@@ -384,20 +406,23 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeAndApply(source, c -> function.apply(c, supplier.get()));
     }
 
     /**
      * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
      *
-     * @param source   the stream of data buffers to be piped.
-     * @param consumer the consumer to be accepted with the body channel.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
      * @return a mono of {@link Void}.
      * @see #pipeAndApply(Publisher, Function)
      * @see #pipeAndAccept(Publisher, BiConsumer, Supplier)
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
                                            final Consumer<? super ReadableByteChannel> consumer) {
+        requireNonNull(consumer, "consumer is null");
         return pipeAndApply(source,
                             c -> {
                                 consumer.accept(c);
@@ -410,8 +435,8 @@ public final class JinahyaDataBufferUtils {
      * Pipes given stream of data buffers and accepts the {@link Pipe#source()}, along with an argument from specified
      * supplier, to specified consumer.
      *
-     * @param source   the stream of data buffers to be pied.
-     * @param consumer the consumer to be accepted with the body stream.
+     * @param source   the stream of data buffers to be pied to {@link Pipe#sink()}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
@@ -420,6 +445,8 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
                                                final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                final Supplier<? extends U> supplier) {
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
     }
 

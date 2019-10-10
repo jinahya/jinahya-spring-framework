@@ -86,6 +86,10 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * A function for getting the size of the file.
+     */
     public static final BiFunction<Path, Object, Long> FR = (f, u) -> {
         try {
             return size(f);
@@ -94,24 +98,30 @@ public class JinahyaDataBufferUtilsTest {
         }
     };
 
+    /**
+     * A function for getting size of the channel.
+     */
     public static final BiFunction<ReadableByteChannel, Object, Long> CR = (c, u) -> {
-        long size = 0L;
+        long s = 0L;
         final ByteBuffer b = ByteBuffer.allocate(128);
         try {
-            for (int r; (r = c.read(b)) != -1; size += r) {
+            for (int r; (r = c.read(b)) != -1; s += r) {
                 b.clear();
             }
         } catch (final IOException ioe) {
             throw new RuntimeException(ioe);
         }
-        return size;
+        return s;
     };
 
+    /**
+     * A function for getting size of the channel. Possibly escape.
+     */
     public static final BiFunction<ReadableByteChannel, Object, Long> CE = (c, u) -> {
-        long size = 0L;
+        long s = 0L;
         final ByteBuffer b = ByteBuffer.allocate(128);
         try {
-            for (int r; (r = c.read(b)) != -1; size += r) {
+            for (int r; (r = c.read(b)) != -1; s += r) {
                 if (current().nextBoolean()) {
                     break;
                 }
@@ -120,7 +130,7 @@ public class JinahyaDataBufferUtilsTest {
         } catch (final IOException ioe) {
             throw new RuntimeException(ioe);
         }
-        return size;
+        return s;
     };
 
     // -----------------------------------------------------------------------------------------------------------------

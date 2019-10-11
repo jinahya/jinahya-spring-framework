@@ -109,8 +109,7 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
                                       @TempFileParameterResolver.TempFile final Path file) {
-        writeBodyToFileAndAccept(response, file, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null)
-                .block();
+        writeBodyToFileAndAccept(response, file, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -147,7 +146,7 @@ class JinahyaResponseSpecUtilsTest {
     // -----------------------------------------------------------------------------------------------------------------'
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testPipeBodyAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndApplyWithExecutor(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Long actual = pipeBodyAndApply(responseSpec, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
@@ -155,7 +154,7 @@ class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testPipeBodyAndApplyEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndApplyWithExecutorEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
         final Long actual = pipeBodyAndApply(responseSpec, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
@@ -163,7 +162,7 @@ class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testPipeBodyAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndAcceptWithExecutor(final WebClient.ResponseSpec responseSpec, final long expected) {
         pipeBodyAndAccept(responseSpec, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)),
                           () -> null)
                 .block();
@@ -171,7 +170,7 @@ class JinahyaResponseSpecUtilsTest {
 
     @MethodSource({"sourceResponseSpec"})
     @ParameterizedTest
-    void testPipeBodyAndAcceptEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
+    void testPipeBodyAndAcceptWithExecutorEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
         pipeBodyAndAccept(responseSpec, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected),
                           () -> null)
                 .block();

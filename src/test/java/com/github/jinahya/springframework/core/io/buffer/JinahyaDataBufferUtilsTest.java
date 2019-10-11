@@ -51,6 +51,7 @@ import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBuffe
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.nio.file.Files.size;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -133,7 +134,7 @@ public class JinahyaDataBufferUtilsTest {
         return s;
     };
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------------- writeAnd
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
@@ -156,7 +157,7 @@ public class JinahyaDataBufferUtilsTest {
      *
      * @param buffers  a stream of data buffers.
      * @param expected a total number of bytes of data buffers.
-     * @param file a temp file to which data buffers are written.
+     * @param file     a temp file to which data buffers are written.
      */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
@@ -165,7 +166,7 @@ public class JinahyaDataBufferUtilsTest {
         writeAndAccept(buffers, file, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------------- writeToTempAnd
 
     /**
      * Test {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, BiFunction, Supplier)} method.
@@ -193,7 +194,7 @@ public class JinahyaDataBufferUtilsTest {
         writeToTempFileAndAccept(buffers, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
-    // -----------------------------------------------------------------------------------------------------------------'
+    // --------------------------------------------------------------------------------------------------------- pipeAnd
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
     void testPipeAndApplyWithExecutor(final Flux<DataBuffer> buffers, final long expected) {
@@ -224,7 +225,7 @@ public class JinahyaDataBufferUtilsTest {
                 .block();
     }
 
-    // -----------------------------------------------------------------------------------------------------------------'
+    // --------------------------------------------------------------------------------------------------------- pipeAnd
 
     /**
      * Tests {@link JinahyaDataBufferUtils#pipeAndApply(Publisher, BiFunction, Supplier)} method.
@@ -234,7 +235,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndApplyWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {
+    void testPipeAndApplyWithCompletableFuture(final Flux<DataBuffer> buffers, final long expected) {
         final Long actual = pipeAndApply(buffers, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
@@ -256,7 +257,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @MethodSource({"sourceDataBuffers"})
     @ParameterizedTest
-    void testPipeAndAcceptWithCompletableFutureExecutor(final Flux<DataBuffer> buffers, final long expected) {
+    void testPipeAndAcceptWithCompletableFuture(final Flux<DataBuffer> buffers, final long expected) {
         pipeAndAccept(buffers, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 

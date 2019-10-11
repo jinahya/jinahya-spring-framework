@@ -153,6 +153,7 @@
             <links>
               <link>https://docs.spring.io/spring-framework/docs/current/javadoc-api/</link>
               <link>https://projectreactor.io/docs/core/release/api/</link>
+              <link>http://www.reactive-streams.org/reactive-streams-1.0.3-javadoc/</link>
             </links>
           </configuration>
           <executions>

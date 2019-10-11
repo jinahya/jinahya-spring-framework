@@ -21,6 +21,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  */
 
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -60,6 +61,8 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the file.
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction, Supplier)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
                                                       final Function<? super Path, ? extends R> function) {
@@ -78,6 +81,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument of the function.
      * @return the value the function results.
      * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
     public static <U, R> Mono<R> writeBodyToFileAndApply(
             final WebClient.ResponseSpec response, final Path file,
@@ -94,6 +98,7 @@ public final class JinahyaResponseSpecUtils {
      * @param file     the file to which the body is written.
      * @param consumer the consumer to be accepted with the path.
      * @return a mono of {@link Void}.
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, BiConsumer, Supplier)
      * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
      */
     public static Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
@@ -118,6 +123,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @return a mono of {@link Void}.
      * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction, Supplier)
      */
     public static <U> Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
                                                           final BiConsumer<? super Path, ? super U> consumer,
@@ -137,6 +143,8 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the channel.
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
+     * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, Consumer)
      */
     public static <R> Mono<R> writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec response, final Function<? super ReadableByteChannel, ? extends R> function) {
@@ -155,6 +163,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @return a mono of the result of the function.
      * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
+     * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      */
     public static <U, R> Mono<R> writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec response,
@@ -171,6 +180,7 @@ public final class JinahyaResponseSpecUtils {
      * @param response the response spec whose body is written to the file.
      * @param consumer the consumer to be accepted with the channel.
      * @return a mono of {@link Void}.
+     * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)
      */
     public static Mono<Void> writeBodyToTempFileAndAccept(final WebClient.ResponseSpec response,
@@ -185,7 +195,7 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Writes given response spec's body to a temporary path and accept a readable bytes channel from the file, along
+     * Writes given response spec's body to a temporary path and accepts a readable bytes channel from the file, along
      * with an argument supplied by specified supplier, to specified consumer.
      *
      * @param <U>      second argument type parameter
@@ -194,6 +204,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument.
      * @return a mono of {@link Void}.
      * @see #writeBodyToTempFileAndAccept(WebClient.ResponseSpec, Consumer)
+     * @see #writeBodyToTempFileAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      */
     public static <U> Mono<Void> writeBodyToTempFileAndAccept(
             final WebClient.ResponseSpec response, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
@@ -207,15 +218,17 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#sink()}.
+     * Pipe#source() source} of the pipe.
      *
-     * @param response the response spec whose body is piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param function the function to be applied with the body channel.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param executor an executor for writing the body to the {@link Pipe#sink() sink} of the pipe.
+     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
-     * @see org.springframework.core.task.support.ExecutorServiceAdapter
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
+     * @see com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor,
+     * Function)
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
@@ -225,15 +238,17 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#sink()} and a second argument from specified supplier.
+     * Pipe#source() source} of the pipe and a second argument from specified supplier.
      *
-     * @param response the response spec whose body is piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param function the function to be applied with the body channel.
+     * @param response the response spec whose body is written to {@link Pipe#sink() sink} of the pipe.
+     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
+     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param supplier the supplier for the second argument of the function.
+     * @param <U>      second argument type parameter
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      */
     static <U, R> Mono<R> pipeBodyAndApply(
             final WebClient.ResponseSpec response, final Executor executor,
@@ -245,14 +260,14 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes given response spec's body and accepts the {@link Pipe#sink()} to specified consumer.
+     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe to specified consumer.
      *
-     * @param response the response spec whose body is piped.
-     * @param executor an executor for writing the body to {@link Pipe#sink()}.
-     * @param consumer the consumer to be accepted with the body channel.
+     * @param response the response spec whose body is written to {@link Pipe#sink() sink} of the pipe.
+     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                         final Consumer<? super ReadableByteChannel> consumer) {
@@ -267,17 +282,17 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument from specified
-     * supplier, to specified consumer.
+     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe, along with an argument
+     * from specified supplier, to specified consumer.
      *
-     * @param response the response spec whose body is piped.
-     * @param executor an executor for piping the body.
-     * @param consumer the consumer to be accepted with the body stream.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      */
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
@@ -291,13 +306,14 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#sink()}.
+     * Pipe#source() source} of the pipe.
      *
-     * @param response the response spec whose body is piped.
-     * @param function the function to be applied with the body channel.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Consumer)
      */
     static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
                                         final Function<? super ReadableByteChannel, ? extends R> function) {
@@ -306,14 +322,16 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#sink()} and a second argument from specified supplier.
+     * Pipe#source() source} of the pipe and a second argument from specified supplier.
      *
-     * @param response the response spec whose body is piped.
-     * @param function the function to be applied with the body channel.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param supplier the supplier for the second argument of the function.
+     * @param <U>      second argument type parameter
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
+     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      */
     static <U, R> Mono<R> pipeBodyAndApply(
             final WebClient.ResponseSpec response,
@@ -325,13 +343,13 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes given response spec's body and accepts the {@link Pipe#sink()} to specified consumer.
+     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe to specified consumer.
      *
-     * @param response the response spec whose body is piped.
-     * @param consumer the consumer to be accepted with the body channel.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
      */
     static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                         final Consumer<? super ReadableByteChannel> consumer) {
@@ -345,16 +363,16 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source()}, along with an argument from specified
-     * supplier, to specified consumer.
+     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe, along with an argument
+     * from specified supplier, to specified consumer.
      *
-     * @param response the response spec whose body is piped.
-     * @param consumer the consumer to be accepted with the body stream.
+     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Consumer)
+     * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      */
     static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                             final BiConsumer<? super ReadableByteChannel, ? super U> consumer,

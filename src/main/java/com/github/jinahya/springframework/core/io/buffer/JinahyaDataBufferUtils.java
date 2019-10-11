@@ -29,7 +29,6 @@ import reactor.core.publisher.Mono;
 import java.io.IOException;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.concurrent.Executor;
@@ -42,7 +41,6 @@ import java.util.function.Supplier;
 import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
-import static java.nio.file.Files.size;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
@@ -232,7 +230,7 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Writes given stream of data buffers to a temporary path and accept a readable bytes channel from the file, along
+     * Writes given stream of data buffers to a temporary path and accepts a readable bytes channel from the file, along
      * with an argument supplied by specified supplier, to specified consumer.
      *
      * @param <U>      second argument type parameter
@@ -254,11 +252,11 @@ public final class JinahyaDataBufferUtils {
 
     /**
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#sink()}.
+     * Pipe#source() source} of the pipe.
      *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
-     * @param executor an executor for writing the stream to {@link Pipe#sink()}.
-     * @param function the function to be applied with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+     * @param executor an executor for writing the stream to {@link Pipe#sink() sink}.
+     * @param function the function to be applied with the {@link Pipe#source() source}.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
@@ -292,12 +290,12 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#sink()} and a second argument from specified supplier.
+     * Pipes given stream of data buffers and return the result of the function applied with the {@link Pipe#source()
+     * source} of the pipe and an argument from specified supplier.
      *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
-     * @param executor an executor for writing the stream to {@link Pipe#sink()}.
-     * @param function the function to be applied with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+     * @param executor an executor for writing the stream to {@link Pipe#sink() sink}.
+     * @param function the function to be applied with the {@link Pipe#source() source}.
      * @param supplier the supplier for the second argument of the function.
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter
@@ -314,7 +312,8 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
+     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe to specified
+     * consumer.
      *
      * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
      * @param executor an executor for writing the stream to {@link Pipe#sink()}.
@@ -336,8 +335,8 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#source()}, along with an argument from specified
-     * supplier, to specified consumer.
+     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe, along with an
+     * argument from specified supplier, to specified consumer.
      *
      * @param source   the stream of data buffers to be pied to {@link Pipe#sink()}.
      * @param executor an executor for piping the stream to {@link Pipe#sink()}.
@@ -359,10 +358,10 @@ public final class JinahyaDataBufferUtils {
 
     /**
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#sink()}.
+     * Pipe#source() source} of the pipe.
      *
-     * @param source   the stream of data buffers to be written to {@link Pipe#sink()}.
-     * @param function the function to be applied with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be written to {@link Pipe#sink() sink}.
+     * @param function the function to be applied with the {@link Pipe#source() source}.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see org.springframework.core.task.support.ExecutorServiceAdapter
@@ -394,10 +393,10 @@ public final class JinahyaDataBufferUtils {
 
     /**
      * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#sink()} and a second argument from specified supplier.
+     * Pipe#source() source} of the pipe and a second argument from specified supplier.
      *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
-     * @param function the function to be applied with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+     * @param function the function to be applied with the {@link Pipe#source() source}.
      * @param supplier the supplier for the second argument of the function.
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter
@@ -414,10 +413,11 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#sink()} to specified consumer.
+     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe to specified
+     * consumer.
      *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink()}.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
      * @return a mono of {@link Void}.
      * @see #pipeAndApply(Publisher, Function)
      * @see #pipeAndAccept(Publisher, BiConsumer, Supplier)
@@ -434,11 +434,11 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#source()}, along with an argument from specified
-     * supplier, to specified consumer.
+     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe, along with an
+     * argument from specified supplier, to specified consumer.
      *
-     * @param source   the stream of data buffers to be pied to {@link Pipe#sink()}.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source()}.
+     * @param source   the stream of data buffers to be pied to {@link Pipe#sink() sink}.
+     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
      * @param supplier the supplier for the second argument.
      * @param <U>      second argument type parameter
      * @return a mono of {@link Void}.

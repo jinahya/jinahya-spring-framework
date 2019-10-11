@@ -88,7 +88,7 @@ public class JinahyaDataBufferUtilsTest {
 
     private static Stream<Arguments> sourceDataBuffers() {
         final Flux<DataBuffer> flux
-                = Flux.range(0, 8291)
+                = Flux.range(0, 128)
                 .map(i -> DATA_BUFFER_FACTORY.allocateBuffer(current().nextInt(16)))
                 .map(b -> b.writePosition(b.capacity()))
 //                .log()
@@ -101,7 +101,7 @@ public class JinahyaDataBufferUtilsTest {
         final Flux<DataBuffer> flux = Flux.just(
                 IntStream.range(0, current().nextInt(1, 128))
                         .mapToObj(i -> {
-                                      final int capacity = current().nextInt(1024);
+                                      final int capacity = current().nextInt(16);
                                       adder.add(capacity);
                                       return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
                                   }
@@ -168,7 +168,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testWriteAndApply(@TempFileParameterResolver.TempFile final Path destination) {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = writeAndApply(source, destination, FR, () -> null).block();
         assertNotNull(actual);
@@ -182,7 +182,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testWriteAndAccept(@TempFileParameterResolver.TempFile final Path destination) {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         writeAndAccept(source, destination, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
     }
@@ -194,7 +194,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testWriteToTempFileAndApply() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = writeToTempFileAndApply(source, CR, () -> null).block();
         assertNotNull(actual);
@@ -206,7 +206,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testWriteToTempFileAndAccept() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         writeToTempFileAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
@@ -214,7 +214,7 @@ public class JinahyaDataBufferUtilsTest {
     // --------------------------------------------------------------------------------------------------------- pipeAnd
     @Test
     void testPipeAndApplyWithExecutor() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
@@ -223,7 +223,7 @@ public class JinahyaDataBufferUtilsTest {
 
     @Test
     void testPipeAndApplyWithExecutorEscape() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
@@ -232,7 +232,7 @@ public class JinahyaDataBufferUtilsTest {
 
     @Test
     void testPipeAndAcceptWithExecutor() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
                 .block();
@@ -240,7 +240,7 @@ public class JinahyaDataBufferUtilsTest {
 
     @Test
     void testPipeAndAcceptWithExecutorEscape() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null)
                 .block();
@@ -253,7 +253,7 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testPipeAndApplyWithCompletableFuture() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = pipeAndApply(source, CR, () -> null).block();
         assertNotNull(actual);
@@ -262,7 +262,7 @@ public class JinahyaDataBufferUtilsTest {
 
     @Test
     void testPipeAndApplyWithCompletableFutureEscape() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         final Long actual = pipeAndApply(source, CE, () -> null).block();
         assertNotNull(actual);
@@ -274,14 +274,14 @@ public class JinahyaDataBufferUtilsTest {
      */
     @Test
     void testPipeAndAcceptWithCompletableFuture() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         pipeAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
     @Test
     void testPipeAndAcceptWithCompletableFutureEscape() {
-        final int expected = current().nextInt(1048576);
+        final int expected = current().nextInt(8192);
         final Flux<DataBuffer> source = dataBuffers(expected);
         pipeAndAccept(source, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
     }

@@ -69,7 +69,7 @@ class JinahyaResponseSpecUtilsTest {
     private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     private static Stream<Arguments> sourceResponseSpec() {
-        final int size = current().nextInt(1048576);
+        final int size = current().nextInt(8192);
         final Flux<DataBuffer> source = JinahyaDataBufferUtilsTest.dataBuffers(size);
         final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
         Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(source);

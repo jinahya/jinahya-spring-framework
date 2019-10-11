@@ -21,6 +21,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  */
 
 import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
+import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,11 +35,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
 import java.nio.file.Path;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CE;
@@ -70,20 +69,11 @@ class JinahyaResponseSpecUtilsTest {
     private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
     private static Stream<Arguments> sourceResponseSpec() {
-        final LongAdder adder = new LongAdder();
-        final Flux<DataBuffer> buffers = Flux.just(
-                IntStream.range(0, current().nextInt(1, 128))
-                        .mapToObj(i -> {
-                                      final int capacity = current().nextInt(1024);
-                                      adder.add(capacity);
-                                      return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
-                                  }
-                        )
-                        .toArray(DataBuffer[]::new)
-        );
+        final int size = current().nextInt(1048576);
+        final Flux<DataBuffer> source = JinahyaDataBufferUtilsTest.dataBuffers(size);
         final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
-        Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(buffers);
-        return Stream.of(Arguments.of(responseSpec, adder.sum()));
+        Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(source);
+        return Stream.of(Arguments.of(responseSpec, size));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

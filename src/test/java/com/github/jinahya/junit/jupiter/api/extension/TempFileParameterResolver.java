@@ -69,9 +69,9 @@ public class TempFileParameterResolver implements ParameterResolver {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 final boolean deleted = Files.deleteIfExists(path);
-                log.trace("deleted: {}", path);
+                log.trace("deleted: {} {}", deleted, path);
             } catch (final IOException ioe) {
-                throw new RuntimeException("failed to delete temp file; " + path, ioe);
+                throw new RuntimeException("failed to delete file; " + path, ioe);
             }
         }));
         if (parameterContext.getParameter().getType() == File.class) {

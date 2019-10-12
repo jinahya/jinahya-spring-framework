@@ -91,6 +91,14 @@ class JinahyaResponseSpecUtilsTest {
         assertEquals(expected, actual.longValue());
     }
 
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, BiConsumer,
+     * Supplier)} method.
+     *
+     * @param response a response spec whose body is written.
+     * @param expected an expected total size of bytes.
+     * @param file     a temporary file to which the body of the response is written.
+     */
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
@@ -125,8 +133,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec response, final long expected) {
-        writeBodyToTempFileAndAccept(response, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
-                .block();
+        writeBodyToTempFileAndAccept(response, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------'

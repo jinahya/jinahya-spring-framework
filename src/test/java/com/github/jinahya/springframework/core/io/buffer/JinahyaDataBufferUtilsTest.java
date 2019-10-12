@@ -22,9 +22,10 @@ package com.github.jinahya.springframework.core.io.buffer;
 
 import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
@@ -35,12 +36,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndAccept;
@@ -69,46 +68,35 @@ public class JinahyaDataBufferUtilsTest {
 
     private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
-    public static Flux<DataBuffer> dataBuffers(final int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("size(" + size + ") <= 0");
+    public static DataBuffer dataBuffer(final int capacity) {
+        if (capacity < 0) {
+            throw new IllegalArgumentException("capacity(" + capacity + ") <= 0");
         }
-        return Flux.generate(() -> size, (state, sink) -> {
-            if (state == 0) {
-                sink.complete();
+        return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
+    }
+
+    public static Flux<DataBuffer> dataBuffers(final int expected) {
+        if (expected <= 0) {
+            throw new IllegalArgumentException("expected(" + expected + ") <= 0");
+        }
+        return Flux.generate(() -> expected, (e, s) -> {
+            if (e == 0) {
+                s.complete();
             } else {
-                final int capacity = current().nextInt(state + 1);
-                state -= capacity;
-                final DataBuffer b = DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
-                sink.next(b);
+                final int capacity = current().nextInt(e + 1);
+                e -= capacity;
+                assert e >= 0;
+                final DataBuffer dataBuffer = dataBuffer(capacity);
+                s.next(dataBuffer);
             }
-            return state;
+            return e;
         });
     }
 
-    private static Stream<Arguments> sourceDataBuffers() {
-        final Flux<DataBuffer> flux
-                = Flux.range(0, 128)
-                .map(i -> DATA_BUFFER_FACTORY.allocateBuffer(current().nextInt(16)))
-                .map(b -> b.writePosition(b.capacity()))
-//                .log()
-                ;
-        return Stream.of(Arguments.of(flux));
-    }
-
-    private static Stream<Arguments> sourceDataBuffersWithSize() {
-        final LongAdder adder = new LongAdder();
-        final Flux<DataBuffer> flux = Flux.just(
-                IntStream.range(0, current().nextInt(1, 128))
-                        .mapToObj(i -> {
-                                      final int capacity = current().nextInt(16);
-                                      adder.add(capacity);
-                                      return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
-                                  }
-                        )
-                        .toArray(DataBuffer[]::new)
-        );
-        return Stream.of(Arguments.of(flux, adder.sum()));
+    private static Stream<Arguments> sourceDataBuffersWithExpected() {
+        final int expected = current().nextInt(8192);
+        final Flux<DataBuffer> buffers = dataBuffers(expected);
+        return Stream.of(Arguments.of(buffers, expected));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -164,12 +152,14 @@ public class JinahyaDataBufferUtilsTest {
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
      *
+     * @param source      a stream of data buffers.
+     * @param expected    an expected total size of data buffers.
      * @param destination a temp file to which data buffers are written.
      */
-    @Test
-    void testWriteAndApply(@TempFileParameterResolver.TempFile final Path destination) {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteAndApply(final Flux<DataBuffer> source, final int expected,
+                           @TempFileParameterResolver.TempFile final Path destination) {
         final Long actual = writeAndApply(source, destination, FR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
@@ -178,12 +168,14 @@ public class JinahyaDataBufferUtilsTest {
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, BiConsumer, Supplier)} method.
      *
+     * @param source      a stream of data buffers.
+     * @param expected    an expected total size of data buffers.
      * @param destination a temp file to which data buffers are written.
      */
-    @Test
-    void testWriteAndAccept(@TempFileParameterResolver.TempFile final Path destination) {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteAndAccept(final Flux<DataBuffer> source, final int expected,
+                            @TempFileParameterResolver.TempFile final Path destination) {
         writeAndAccept(source, destination, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
     }
 
@@ -191,11 +183,13 @@ public class JinahyaDataBufferUtilsTest {
 
     /**
      * Test {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, BiFunction, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected total size of data buffers.
      */
-    @Test
-    void testWriteToTempFileAndApply() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteToTempFileAndApply(final Flux<DataBuffer> source, final int expected) {
         final Long actual = writeToTempFileAndApply(source, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
@@ -203,45 +197,43 @@ public class JinahyaDataBufferUtilsTest {
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeToTempFileAndAccept(Publisher, BiConsumer, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected total size of data buffers.
      */
-    @Test
-    void testWriteToTempFileAndAccept() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteToTempFileAndAccept(final Flux<DataBuffer> source, final int expected) {
         writeToTempFileAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
     // --------------------------------------------------------------------------------------------------------- pipeAnd
-    @Test
-    void testPipeAndApplyWithExecutor() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndApplyWithExecutor(final Flux<DataBuffer> source, final int expected) {
         final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
-    @Test
-    void testPipeAndApplyWithExecutorEscape() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndApplyWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
         final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
 
-    @Test
-    void testPipeAndAcceptWithExecutor() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndAcceptWithExecutor(final Flux<DataBuffer> source, final int expected) {
         pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
                 .block();
     }
 
-    @Test
-    void testPipeAndAcceptWithExecutorEscape() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndAcceptWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
         pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null)
                 .block();
     }
@@ -250,20 +242,21 @@ public class JinahyaDataBufferUtilsTest {
 
     /**
      * Tests {@link JinahyaDataBufferUtils#pipeAndApply(Publisher, BiFunction, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected total size of data buffers.
      */
-    @Test
-    void testPipeAndApplyWithCompletableFuture() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndApplyWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
         final Long actual = pipeAndApply(source, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
-    @Test
-    void testPipeAndApplyWithCompletableFutureEscape() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndApplyWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
         final Long actual = pipeAndApply(source, CE, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
@@ -271,18 +264,19 @@ public class JinahyaDataBufferUtilsTest {
 
     /**
      * Tests {@link JinahyaDataBufferUtils#pipeAndAccept(Publisher, BiConsumer, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected total size of data buffers.
      */
-    @Test
-    void testPipeAndAcceptWithCompletableFuture() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndAcceptWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
         pipeAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
-    @Test
-    void testPipeAndAcceptWithCompletableFutureEscape() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> source = dataBuffers(expected);
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testPipeAndAcceptWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
         pipeAndAccept(source, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
     }
 }

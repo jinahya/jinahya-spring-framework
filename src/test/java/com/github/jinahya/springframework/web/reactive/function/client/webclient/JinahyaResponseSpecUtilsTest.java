@@ -29,8 +29,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferFactory;
-import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
@@ -66,14 +64,12 @@ import static org.mockito.Mockito.mock;
 class JinahyaResponseSpecUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
-    private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
-
-    private static Stream<Arguments> sourceResponseSpec() {
-        final int size = current().nextInt(8192);
-        final Flux<DataBuffer> source = JinahyaDataBufferUtilsTest.dataBuffers(size);
+    private static Stream<Arguments> sourceResponseSpecWithExpected() {
+        final int expected = current().nextInt(8192);
+        final Flux<DataBuffer> source = JinahyaDataBufferUtilsTest.dataBuffers(expected);
         final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
         Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(source);
-        return Stream.of(Arguments.of(responseSpec, size));
+        return Stream.of(Arguments.of(responseSpec, expected));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -86,7 +82,7 @@ class JinahyaResponseSpecUtilsTest {
      * @param expected an expected total size of bytes.
      * @param file     a temporary file to which the body of the response is written.
      */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected,
                                      @TempFileParameterResolver.TempFile final Path file) {
@@ -95,7 +91,7 @@ class JinahyaResponseSpecUtilsTest {
         assertEquals(expected, actual.longValue());
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
                                       @TempFileParameterResolver.TempFile final Path file) {
@@ -108,13 +104,13 @@ class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndApply(WebClient.ResponseSpec, BiFunction, Supplier)}
      * method.
      *
-     * @param responseSpec a response spec to test with.
-     * @param expected     an expected total size of bytes.
+     * @param response a response spec to test with.
+     * @param expected an expected total size of bytes.
      */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = writeBodyToTempFileAndApply(responseSpec, CR, () -> null).block();
+    void testWriteBodyToTempFileAndApply(final WebClient.ResponseSpec response, final long expected) {
+        final Long actual = writeBodyToTempFileAndApply(response, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -123,59 +119,59 @@ class JinahyaResponseSpecUtilsTest {
      * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)}
      * method.
      *
-     * @param responseSpec a response spec to test with.
-     * @param expected     an expected total size of bytes.
+     * @param response a response spec to test with.
+     * @param expected an expected total size of bytes.
      */
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec responseSpec, final long expected) {
-        writeBodyToTempFileAndAccept(responseSpec, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
+    void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec response, final long expected) {
+        writeBodyToTempFileAndAccept(response, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
                 .block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testPipeBodyAndApplyWithExecutor(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = pipeBodyAndApply(responseSpec, newSingleThreadExecutor(), CR, () -> null).block();
+    void testPipeBodyAndApplyWithExecutor(final WebClient.ResponseSpec response, final long expected) {
+        final Long actual = pipeBodyAndApply(response, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testPipeBodyAndApplyWithExecutorEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = pipeBodyAndApply(responseSpec, newSingleThreadExecutor(), CR, () -> null).block();
+    void testPipeBodyAndApplyWithExecutorEscape(final WebClient.ResponseSpec response, final long expected) {
+        final Long actual = pipeBodyAndApply(response, newSingleThreadExecutor(), CR, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testPipeBodyAndAcceptWithExecutor(final WebClient.ResponseSpec responseSpec, final long expected) {
-        pipeBodyAndAccept(responseSpec, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)),
+    void testPipeBodyAndAcceptWithExecutor(final WebClient.ResponseSpec response, final long expected) {
+        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)),
                           () -> null)
                 .block();
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testPipeBodyAndAcceptWithExecutorEscape(final WebClient.ResponseSpec responseSpec, final long expected) {
-        pipeBodyAndAccept(responseSpec, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected),
+    void testPipeBodyAndAcceptWithExecutorEscape(final WebClient.ResponseSpec response, final long expected) {
+        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected),
                           () -> null)
                 .block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------'
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
-    void testPipeBodyAndApplyWithCompletableFuture(final WebClient.ResponseSpec responseSpec, final long expected) {
-        final Long actual = pipeBodyAndApply(responseSpec, CR, () -> null).block();
+    void testPipeBodyAndApplyWithCompletableFuture(final WebClient.ResponseSpec response, final long expected) {
+        final Long actual = pipeBodyAndApply(response, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndApplyWithCompletableFutureEscape(final WebClient.ResponseSpec response, final long expected) {
         final Long actual = pipeBodyAndApply(response, CE, () -> null).block();
@@ -183,13 +179,13 @@ class JinahyaResponseSpecUtilsTest {
         assertTrue(actual <= expected);
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndAcceptWithCompletableFuture(final WebClient.ResponseSpec response, final long expected) {
         pipeBodyAndAccept(response, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
-    @MethodSource({"sourceResponseSpec"})
+    @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndAcceptWithCompletableFutureEscape(final WebClient.ResponseSpec response, final long expected) {
         pipeBodyAndAccept(response, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();

@@ -9,4 +9,4 @@
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.jinahya/jinahya-spring-framework.svg)](https://search.maven.org/search?q=g:com.github.jinahya%20a:jinahya-spring-framework)
 [![Javadocs](https://javadoc.io/badge/com.github.jinahya/jinahya-spring-framework.svg)](https://javadoc.io/doc/com.github.jinahya/jinahya-spring-framework)
 
-Jinahya's extensions and utilities for Spring Framework.
+Jinahya's utilities for Spring Framework.

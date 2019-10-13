@@ -153,7 +153,7 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Writes given response spec's body to a temporary path and returns the result of specified path function applied
+     * Writes given response spec's body to a temporary file and returns the result of specified path function applied
      * with a readable byte channel for the file and an argument supplied by specified argument supplier.
      *
      * @param <U>      second argument type parameter
@@ -195,7 +195,7 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Writes given response spec's body to a temporary path and accepts a readable bytes channel from the file, along
+     * Writes given response spec's body to a temporary file and accepts a readable bytes channel from the file, along
      * with an argument supplied by specified supplier, to specified consumer.
      *
      * @param <U>      second argument type parameter

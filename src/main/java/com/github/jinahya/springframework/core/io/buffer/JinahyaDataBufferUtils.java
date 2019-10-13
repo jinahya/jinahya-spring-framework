@@ -45,6 +45,7 @@ import static java.nio.file.StandardOpenOption.READ;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
+import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
 import static reactor.core.publisher.Mono.fromFuture;
 import static reactor.core.publisher.Mono.just;
@@ -266,7 +267,7 @@ public final class JinahyaDataBufferUtils {
                                          throw new RuntimeException(ioe);
                                      }
                                  })
-                                 .subscribe(DataBufferUtils.releaseConsumer()));
+                                 .subscribe(releaseConsumer()));
                          return just(function.apply(p.source()));
                      },
                      p -> {
@@ -372,7 +373,7 @@ public final class JinahyaDataBufferUtils {
                                              throw new RuntimeException(ioe);
                                          }
                                      })
-                                     .subscribe(DataBufferUtils.releaseConsumer())),
+                                     .subscribe(releaseConsumer())),
                      p -> {
                          try {
                              p.source().close();

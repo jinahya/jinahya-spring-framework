@@ -58,21 +58,21 @@ import static reactor.core.publisher.Mono.using;
 @Slf4j
 public final class JinahyaDataBufferUtils {
 
-    // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Invokes {@link DataBufferUtils#write(Publisher, Path, OpenOption...)} method with given arguments and returns
-     * specified file.
-     *
-     * @param source      the stream of data buffers to be written.
-     * @param destination the path to the file.
-     * @param options     options specifying how the file is opened.
-     * @return a {@link Mono} of specified file.
-     */
-    private static Mono<Path> writeThenReturn(final Publisher<DataBuffer> source, final Path destination,
-                                              final OpenOption... options) {
-        return write(source, destination, options).thenReturn(destination);
-    }
+//    // -----------------------------------------------------------------------------------------------------------------
+//
+//    /**
+//     * Invokes {@link DataBufferUtils#write(Publisher, Path, OpenOption...)} method with given arguments and returns
+//     * specified file.
+//     *
+//     * @param source      the stream of data buffers to be written.
+//     * @param destination the path to the file.
+//     * @param options     options specifying how the file is opened.
+//     * @return a {@link Mono} of specified file.
+//     */
+//    private static Mono<Path> writeThenReturn(final Publisher<DataBuffer> source, final Path destination,
+//                                              final OpenOption... options) {
+//        return write(source, destination, options).thenReturn(destination);
+//    }
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -85,10 +85,14 @@ public final class JinahyaDataBufferUtils {
      * @param function    the function to be applied with the file.
      * @param <R>         result type parameter
      * @return a mono of the result of the function.
+     * @see DataBufferUtils#write(Publisher, Path, OpenOption...)
      */
     public static <R> Mono<R> writeAndApply(final Publisher<DataBuffer> source, final Path destination,
                                             final Function<? super Path, ? extends R> function) {
-        return writeThenReturn(source, destination).map(function);
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        return write(source, destination).thenReturn(destination).map(function);
     }
 
     /**
@@ -181,7 +185,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              deleteIfExists(t);
                          } catch (final IOException ioe) {
-                             log.error("failed to delete temporary file: {}", t);
+                             log.error("failed to delete temp file: {}", t, ioe);
                              throw new RuntimeException(ioe);
                          }
                      });
@@ -274,6 +278,7 @@ public final class JinahyaDataBufferUtils {
                                      try {
                                          p.sink().close();
                                      } catch (final IOException ioe) {
+                                         log.error("failed to close pipe.sink", ioe);
                                          throw new RuntimeException(ioe);
                                      }
                                  })
@@ -284,6 +289,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
+                             log.error("failed to close pipe.source", ioe);
                              throw new RuntimeException(ioe);
                          }
                      });
@@ -374,10 +380,11 @@ public final class JinahyaDataBufferUtils {
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
                              .doFirst(() -> write(source, p.sink())
-                                     .doFinally(st -> {
+                                     .doFinally(s -> {
                                          try {
                                              p.sink().close();
                                          } catch (final IOException ioe) {
+                                             log.error("failed to close pipe.sink", ioe);
                                              throw new RuntimeException(ioe);
                                          }
                                      })
@@ -386,6 +393,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
+                             log.error("failed to close pipe.source", ioe);
                              throw new RuntimeException(ioe);
                          }
                      });

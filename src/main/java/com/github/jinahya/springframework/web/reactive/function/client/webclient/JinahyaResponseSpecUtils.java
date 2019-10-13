@@ -96,7 +96,7 @@ public final class JinahyaResponseSpecUtils {
      *
      * @param response the response spec whose body is written to the file.
      * @param file     the file to which the body is written.
-     * @param consumer the consumer to be accepted with the path.
+     * @param consumer the consumer to be accepted with the file.
      * @return a mono of {@link Void}.
      * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, BiConsumer, Supplier)
      * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
@@ -153,12 +153,12 @@ public final class JinahyaResponseSpecUtils {
     }
 
     /**
-     * Writes given response spec's body to a temporary file and returns the result of specified path function applied
-     * with a readable byte channel for the file and an argument supplied by specified argument supplier.
+     * Writes given response spec's body to a temporary file and returns the result of specified function applied with a
+     * readable byte channel for the file and an argument supplied by specified argument supplier.
      *
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter
-     * @param response the response spec whose body is written to the path.
+     * @param response the response spec whose body is written to the file.
      * @param function the function to be applied with the channel and the second argument.
      * @param supplier the supplier for the second argument.
      * @return a mono of the result of the function.

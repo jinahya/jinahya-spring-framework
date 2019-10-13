@@ -105,7 +105,7 @@ public final class JinahyaDataBufferUtils {
      *
      * @param source      the stream of data buffers to be written to the file.
      * @param destination the file to which the stream is written.
-     * @param consumer    the consumer to be accepted with the path.
+     * @param consumer    the consumer to be accepted with the file.
      * @return a mono of {@link Void}.
      */
     public static Mono<Void> writeAndAccept(final Publisher<DataBuffer> source, final Path destination,
@@ -176,8 +176,8 @@ public final class JinahyaDataBufferUtils {
     }
 
     /**
-     * Writes given stream of data buffers to a temporary file and returns the result of specified path function applied
-     * with a readable byte channel for the file and an argument supplied by specified argument supplier.
+     * Writes given stream of data buffers to a temporary file and returns the result of specified function applied with
+     * a readable byte channel for the file and an argument supplied by specified argument supplier.
      *
      * @param <U>      second argument type parameter
      * @param <R>      result type parameter

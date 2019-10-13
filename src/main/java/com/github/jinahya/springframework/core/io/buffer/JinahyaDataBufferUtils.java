@@ -263,7 +263,7 @@ public final class JinahyaDataBufferUtils {
                                      try {
                                          p.sink().close();
                                      } catch (final IOException ioe) {
-                                         log.error("failed to close pipe.sink", ioe);
+                                         log.error("failed to close the pipe.sink: {}", p.sink(), ioe);
                                          throw new RuntimeException(ioe);
                                      }
                                  })
@@ -274,7 +274,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
-                             log.error("failed to close pipe.source", ioe);
+                             log.error("failed to close the pipe.source: {}", p.source(), ioe);
                              throw new RuntimeException(ioe);
                          }
                      });
@@ -369,7 +369,7 @@ public final class JinahyaDataBufferUtils {
                                          try {
                                              p.sink().close();
                                          } catch (final IOException ioe) {
-                                             log.error("failed to close pipe.sink", ioe);
+                                             log.error("failed to close the pipe.sink: {}", p.sink(), ioe);
                                              throw new RuntimeException(ioe);
                                          }
                                      })
@@ -378,7 +378,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
-                             log.error("failed to close pipe.source", ioe);
+                             log.error("failed to close the pipe.source: {}", p.source(), ioe);
                              throw new RuntimeException(ioe);
                          }
                      });

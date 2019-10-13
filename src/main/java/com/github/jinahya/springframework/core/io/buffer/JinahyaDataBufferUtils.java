@@ -58,22 +58,6 @@ import static reactor.core.publisher.Mono.using;
 @Slf4j
 public final class JinahyaDataBufferUtils {
 
-//    // -----------------------------------------------------------------------------------------------------------------
-//
-//    /**
-//     * Invokes {@link DataBufferUtils#write(Publisher, Path, OpenOption...)} method with given arguments and returns
-//     * specified file.
-//     *
-//     * @param source      the stream of data buffers to be written.
-//     * @param destination the path to the file.
-//     * @param options     options specifying how the file is opened.
-//     * @return a {@link Mono} of specified file.
-//     */
-//    private static Mono<Path> writeThenReturn(final Publisher<DataBuffer> source, final Path destination,
-//                                              final OpenOption... options) {
-//        return write(source, destination, options).thenReturn(destination);
-//    }
-
     // -----------------------------------------------------------------------------------------------------------------
 
     /**

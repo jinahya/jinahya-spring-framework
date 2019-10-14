@@ -230,8 +230,8 @@ public final class JinahyaResponseSpecUtils {
      * @see com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor,
      * Function)
      */
-    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
-                                        final Function<? super ReadableByteChannel, ? extends R> function) {
+    public static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
+                                               final Function<? super ReadableByteChannel, ? extends R> function) {
         return pipeAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), executor,
                             function);
     }
@@ -250,7 +250,7 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      */
-    static <U, R> Mono<R> pipeBodyAndApply(
+    public static <U, R> Mono<R> pipeBodyAndApply(
             final WebClient.ResponseSpec response, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
@@ -269,8 +269,8 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
      */
-    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
-                                        final Consumer<? super ReadableByteChannel> consumer) {
+    public static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
+                                               final Consumer<? super ReadableByteChannel> consumer) {
         requireNonNull(consumer, "consumer is null");
         return pipeBodyAndApply(response,
                                 executor,
@@ -294,9 +294,9 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      */
-    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
-                                            final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
-                                            final Supplier<? extends U> supplier) {
+    public static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
+                                                   final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+                                                   final Supplier<? extends U> supplier) {
         requireNonNull(consumer, "consumer is null");
         requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));
@@ -315,8 +315,8 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Consumer)
      */
-    static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
-                                        final Function<? super ReadableByteChannel, ? extends R> function) {
+    public static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
+                                               final Function<? super ReadableByteChannel, ? extends R> function) {
         return pipeAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), function);
     }
 
@@ -333,7 +333,7 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      */
-    static <U, R> Mono<R> pipeBodyAndApply(
+    public static <U, R> Mono<R> pipeBodyAndApply(
             final WebClient.ResponseSpec response,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
@@ -351,8 +351,8 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Function)
      */
-    static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
-                                        final Consumer<? super ReadableByteChannel> consumer) {
+    public static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
+                                               final Consumer<? super ReadableByteChannel> consumer) {
         requireNonNull(consumer, "consumer is null");
         return pipeBodyAndApply(response,
                                 c -> {
@@ -374,9 +374,9 @@ public final class JinahyaResponseSpecUtils {
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Consumer)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      */
-    static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
-                                            final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
-                                            final Supplier<? extends U> supplier) {
+    public static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
+                                                   final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+                                                   final Supplier<? extends U> supplier) {
         requireNonNull(consumer, "consumer is null");
         requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));

@@ -26,6 +26,8 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
@@ -380,6 +382,64 @@ public final class JinahyaResponseSpecUtils {
         requireNonNull(consumer, "consumer is null");
         requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    @Deprecated
+    public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,
+                                                         final Function<? super InputStream, ? extends R> function) {
+        if (response == null) {
+            throw new NullPointerException("response is null");
+        }
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        return response
+                .bodyToFlux(DataBuffer.class)
+                .map(b -> b.asInputStream(true))
+                .reduce(SequenceInputStream::new)
+                .map(function);
+    }
+
+    @Deprecated
+    public static <U, R> Mono<R> reduceBodyAsStreamAndApply(
+            final WebClient.ResponseSpec response,
+            final BiFunction<? super InputStream, ? super U, ? extends R> function,
+            final Supplier<? extends U> supplier) {
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
+        return reduceBodyAsStreamAndApply(response, s -> function.apply(s, supplier.get()));
+    }
+
+    @Deprecated
+    public static Mono<Void> reduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response,
+                                                         final Consumer<? super InputStream> consumer) {
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        return reduceBodyAsStreamAndApply(response,
+                                          s -> {
+                                              consumer.accept(s);
+                                              return s;
+                                          })
+                .then();
+    }
+
+    @Deprecated
+    public static <U> Mono<Void> reduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response,
+                                                             final BiConsumer<? super InputStream, ? super U> consumer,
+                                                             final Supplier<? extends U> supplier) {
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
+        return reduceBodyAsStreamAndAccept(response, s -> consumer.accept(s, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

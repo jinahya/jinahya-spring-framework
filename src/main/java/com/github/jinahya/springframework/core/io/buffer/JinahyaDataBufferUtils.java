@@ -470,7 +470,15 @@ public final class JinahyaDataBufferUtils {
         return from(requireNonNull(source, "source is null"))
                 .map(b -> b.asInputStream(release))
                 .reduce(SequenceInputStream::new)
-                .map(function);
+                .map(s -> {
+                    try {
+                        try (InputStream c = s) {
+                            return function.apply(c);
+                        }
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                });
     }
 
     @Deprecated

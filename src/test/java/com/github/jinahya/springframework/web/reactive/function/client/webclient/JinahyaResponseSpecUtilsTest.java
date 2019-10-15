@@ -41,8 +41,11 @@ import java.util.stream.Stream;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CE;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CR;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.FR;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.SR;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndApply;
+import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.reduceBodyAsStreamAndAccept;
+import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.reduceBodyAsStreamAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept;
@@ -196,5 +199,42 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testPipeBodyAndAcceptWithCompletableFutureEscape(final WebClient.ResponseSpec response, final long expected) {
         pipeBodyAndAccept(response, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)}
+     * method.
+     *
+     * @param response a response spec whose body is written.
+     * @param expected an expected total size of bytes.
+     */
+    @MethodSource({"sourceResponseSpecWithExpected"})
+    @ParameterizedTest
+    void testReduceBodyAsStreamAndApply(final WebClient.ResponseSpec response, final long expected) {
+        final Long actual = reduceBodyAsStreamAndApply(response, SR, () -> null).block();
+        assertNotNull(actual);
+        assertEquals(expected, actual.longValue());
+    }
+
+    /**
+     * Tests {@link JinahyaResponseSpecUtils#reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)}
+     * method.
+     *
+     * @param response a response spec whose body is written.
+     * @param expected an expected total size of bytes.
+     */
+    @MethodSource({"sourceResponseSpecWithExpected"})
+    @ParameterizedTest
+    void testReduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response, final long expected) {
+        reduceBodyAsStreamAndAccept(response,
+                                    (s, u) -> {
+                                        final Long actual = SR.apply(s, u);
+                                        assertNotNull(actual);
+                                        assertEquals(expected, actual.longValue());
+                                    },
+                                    () -> null)
+                .block();
     }
 }

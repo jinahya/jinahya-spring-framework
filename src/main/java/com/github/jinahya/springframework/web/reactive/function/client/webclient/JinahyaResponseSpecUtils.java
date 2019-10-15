@@ -27,7 +27,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
@@ -39,6 +38,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsStreamAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.Objects.requireNonNull;
@@ -385,20 +385,21 @@ public final class JinahyaResponseSpecUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Reduces given response spec't body as an input stream and returns the result of specified function applies with
+     * it.
+     *
+     * @param response the response spec whose body is reduced.
+     * @param function the function to be applied with the reduced body.
+     * @param <R>      result type parameter
+     * @return a mono of the result of the function.
+     */
     @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,
                                                          final Function<? super InputStream, ? extends R> function) {
-        if (response == null) {
-            throw new NullPointerException("response is null");
-        }
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        return response
-                .bodyToFlux(DataBuffer.class)
-                .map(b -> b.asInputStream(true))
-                .reduce(SequenceInputStream::new)
-                .map(function);
+        return reduceAsStreamAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), true,
+                                      requireNonNull(function, "function is null"));
     }
 
     @Deprecated

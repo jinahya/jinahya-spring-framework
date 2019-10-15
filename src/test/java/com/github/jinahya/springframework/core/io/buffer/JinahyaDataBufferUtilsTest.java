@@ -33,6 +33,7 @@ import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
@@ -107,6 +108,19 @@ public class JinahyaDataBufferUtilsTest {
     public static final BiFunction<Path, Object, Long> FR = (f, u) -> {
         try {
             return size(f);
+        } catch (final IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+    };
+
+    public static final BiFunction<InputStream, Object, Long> SR = (s, u) -> {
+        try {
+            long size = 0L;
+            final byte[] buffer = new byte[128];
+            for (int r; (r = s.read(buffer)) != -1; ) {
+                size += r;
+            }
+            return size;
         } catch (final IOException ioe) {
             throw new RuntimeException(ioe);
         }

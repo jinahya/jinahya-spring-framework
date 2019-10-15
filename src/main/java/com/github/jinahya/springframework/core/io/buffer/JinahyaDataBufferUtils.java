@@ -27,6 +27,8 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.OpenOption;
@@ -47,6 +49,7 @@ import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
+import static reactor.core.publisher.Flux.from;
 import static reactor.core.publisher.Mono.fromFuture;
 import static reactor.core.publisher.Mono.just;
 import static reactor.core.publisher.Mono.using;
@@ -443,6 +446,75 @@ public final class JinahyaDataBufferUtils {
         requireNonNull(consumer, "consumer is null");
         requireNonNull(supplier, "supplier is null");
         return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Reduces given stream of data buffers into an input stream and returns the result of the function applied with
+     * it.
+     *
+     * @param source   the stream of data buffers to be reduced.
+     * @param release  a value for an argument of {@link DataBuffer#asInputStream(boolean)}.
+     * @param function the function to be applied with the stream.
+     * @param <R>      result type parameter
+     * @return a mono of the result of the function.
+     */
+    @Deprecated
+    public static <R> Mono<R> reduceAsStreamAndApply(final Publisher<? extends DataBuffer> source,
+                                                     final boolean release,
+                                                     final Function<? super InputStream, ? extends R> function) {
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        return from(requireNonNull(source, "source is null"))
+                .map(b -> b.asInputStream(release))
+                .reduce(SequenceInputStream::new)
+                .map(function);
+    }
+
+    @Deprecated
+    public static <U, R> Mono<R> reduceAsStreamAndApply(
+            final Publisher<? extends DataBuffer> source, final boolean release,
+            final BiFunction<? super InputStream, ? super U, ? extends R> function,
+            final Supplier<? extends U> supplier) {
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
+        return reduceAsStreamAndApply(source, release, s -> function.apply(s, supplier.get()));
+    }
+
+    @Deprecated
+    public static Mono<Void> reduceAsStreamAndAccept(final Publisher<? extends DataBuffer> source,
+                                                     final boolean release,
+                                                     final Consumer<? super InputStream> consumer) {
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        return reduceAsStreamAndApply(source,
+                                      release,
+                                      s -> {
+                                          consumer.accept(s);
+                                          return s;
+                                      })
+                .then();
+    }
+
+    @Deprecated
+    public static <U> Mono<Void> reduceAsStreamAndAccept(
+            final Publisher<? extends DataBuffer> source, final boolean release,
+            final BiConsumer<? super InputStream, ? super U> consumer,
+            final Supplier<? extends U> supplier) {
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
+        return reduceAsStreamAndAccept(source, release, s -> consumer.accept(s, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

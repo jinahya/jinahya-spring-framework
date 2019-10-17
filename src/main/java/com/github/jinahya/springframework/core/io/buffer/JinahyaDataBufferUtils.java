@@ -459,15 +459,20 @@ public final class JinahyaDataBufferUtils {
      * @param function the function to be applied with the stream.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
+     * @see DataBuffer#asInputStream(boolean)
+     * @see SequenceInputStream
      */
     @Deprecated
     public static <R> Mono<R> reduceAsStreamAndApply(final Publisher<? extends DataBuffer> source,
                                                      final boolean release,
                                                      final Function<? super InputStream, ? extends R> function) {
+        if (source == null) {
+            throw new NullPointerException("source is null");
+        }
         if (function == null) {
             throw new NullPointerException("function is null");
         }
-        return from(requireNonNull(source, "source is null"))
+        return from(source)
                 .map(b -> b.asInputStream(release))
                 .reduce(SequenceInputStream::new)
                 .map(s -> {

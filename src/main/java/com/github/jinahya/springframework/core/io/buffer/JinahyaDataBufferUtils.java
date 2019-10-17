@@ -44,7 +44,6 @@ import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.StandardOpenOption.READ;
-import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
@@ -99,8 +98,12 @@ public final class JinahyaDataBufferUtils {
     public static <U, R> Mono<R> writeAndApply(
             final Publisher<DataBuffer> source, final Path destination,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
-        requireNonNull(function, "function is null");
-        requireNonNull(supplier, "supplier is null");
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return writeAndApply(source, destination, f -> function.apply(f, supplier.get()));
     }
 
@@ -114,7 +117,9 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> writeAndAccept(final Publisher<DataBuffer> source, final Path destination,
                                             final Consumer<? super Path> consumer) {
-        requireNonNull(consumer, "consumer is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
         return writeAndApply(source, destination, identity())
                 .map(p -> {
                     consumer.accept(p);
@@ -138,8 +143,12 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> writeAndAccept(final Publisher<DataBuffer> source, final Path destination,
                                                 final BiConsumer<? super Path, ? super U> consumer,
                                                 final Supplier<? extends U> supplier) {
-        requireNonNull(consumer, "consumer is null");
-        requireNonNull(supplier, "supplier is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return writeAndAccept(source, destination, f -> consumer.accept(f, supplier.get()));
     }
 
@@ -156,8 +165,12 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> writeToTempFileAndApply(
             final Publisher<DataBuffer> source, final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(function, "function is null");
+        if (source == null) {
+            throw new NullPointerException("source is null");
+        }
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
         return using(() -> createTempFile(null, null),
                      t -> writeAndApply(source, t, f -> {
                          try {
@@ -195,8 +208,12 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
-        requireNonNull(function, "function is null");
-        requireNonNull(supplier, "supplier is null");
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return writeToTempFileAndApply(source, c -> function.apply(c, supplier.get()));
     }
 
@@ -212,7 +229,9 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> writeToTempFileAndAccept(final Publisher<DataBuffer> source,
                                                       final Consumer<? super ReadableByteChannel> consumer) {
-        requireNonNull(consumer, "consumer is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
         return writeToTempFileAndApply(source,
                                        c -> {
                                            consumer.accept(c);
@@ -235,8 +254,12 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> writeToTempFileAndAccept(
             final Publisher<DataBuffer> source, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
             final Supplier<? extends U> supplier) {
-        requireNonNull(consumer, "consumer is null");
-        requireNonNull(supplier, "supplier is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return writeToTempFileAndAccept(source, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -256,9 +279,15 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source, final Executor executor,
                                            final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(executor, "executor is null");
-        requireNonNull(function, "function is null");
+        if (source == null) {
+            throw new NullPointerException("source is null");
+        }
+        if (executor == null) {
+            throw new NullPointerException("executor is null");
+        }
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
         return using(Pipe::open,
                      p -> {
                          executor.execute(() -> write(source, p.sink())
@@ -300,8 +329,12 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source, final Executor executor,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
-        requireNonNull(function, "function is null");
-        requireNonNull(supplier, "supplier is null");
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return pipeAndApply(source, executor, c -> function.apply(c, supplier.get()));
     }
 
@@ -318,7 +351,9 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                            final Consumer<? super ReadableByteChannel> consumer) {
-        requireNonNull(consumer, "consumer is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
         return pipeAndApply(source,
                             executor,
                             c -> {
@@ -343,8 +378,12 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source, final Executor executor,
                                                final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                final Supplier<? extends U> supplier) {
-        requireNonNull(consumer, "consumer is null");
-        requireNonNull(supplier, "supplier is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return pipeAndAccept(source, executor, c -> consumer.accept(c, supplier.get()));
     }
 
@@ -363,8 +402,12 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
                                            final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(function, "function is null");
+        if (source == null) {
+            throw new NullPointerException("source is null");
+        }
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
                              .doFirst(() -> write(source, p.sink())
@@ -403,8 +446,12 @@ public final class JinahyaDataBufferUtils {
             final Publisher<DataBuffer> source,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
-        requireNonNull(function, "function is null");
-        requireNonNull(supplier, "supplier is null");
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return pipeAndApply(source, c -> function.apply(c, supplier.get()));
     }
 
@@ -420,7 +467,9 @@ public final class JinahyaDataBufferUtils {
      */
     public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
                                            final Consumer<? super ReadableByteChannel> consumer) {
-        requireNonNull(consumer, "consumer is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
         return pipeAndApply(source,
                             c -> {
                                 consumer.accept(c);
@@ -443,8 +492,12 @@ public final class JinahyaDataBufferUtils {
     public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
                                                final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                final Supplier<? extends U> supplier) {
-        requireNonNull(consumer, "consumer is null");
-        requireNonNull(supplier, "supplier is null");
+        if (consumer == null) {
+            throw new NullPointerException("consumer is null");
+        }
+        if (supplier == null) {
+            throw new NullPointerException("supplier is null");
+        }
         return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
     }
 

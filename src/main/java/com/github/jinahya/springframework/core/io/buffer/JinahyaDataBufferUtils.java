@@ -463,9 +463,9 @@ public final class JinahyaDataBufferUtils {
      * @see SequenceInputStream
      */
     @Deprecated
-    public static <R> Mono<R> reduceAsStreamAndApply(final Publisher<? extends DataBuffer> source,
-                                                     final boolean release,
-                                                     final Function<? super InputStream, ? extends R> function) {
+    public static <R> Mono<R> reduceAsInputStreamAndApply(final Publisher<? extends DataBuffer> source,
+                                                          final boolean release,
+                                                          final Function<? super InputStream, ? extends R> function) {
         if (source == null) {
             throw new NullPointerException("source is null");
         }
@@ -487,7 +487,7 @@ public final class JinahyaDataBufferUtils {
     }
 
     @Deprecated
-    public static <U, R> Mono<R> reduceAsStreamAndApply(
+    public static <U, R> Mono<R> reduceAsInputStreamAndApply(
             final Publisher<? extends DataBuffer> source, final boolean release,
             final BiFunction<? super InputStream, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
@@ -497,27 +497,27 @@ public final class JinahyaDataBufferUtils {
         if (supplier == null) {
             throw new NullPointerException("supplier is null");
         }
-        return reduceAsStreamAndApply(source, release, s -> function.apply(s, supplier.get()));
+        return reduceAsInputStreamAndApply(source, release, s -> function.apply(s, supplier.get()));
     }
 
     @Deprecated
-    public static Mono<Void> reduceAsStreamAndAccept(final Publisher<? extends DataBuffer> source,
-                                                     final boolean release,
-                                                     final Consumer<? super InputStream> consumer) {
+    public static Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
+                                                          final boolean release,
+                                                          final Consumer<? super InputStream> consumer) {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
-        return reduceAsStreamAndApply(source,
-                                      release,
-                                      s -> {
-                                          consumer.accept(s);
-                                          return s;
-                                      })
+        return reduceAsInputStreamAndApply(source,
+                                           release,
+                                           s -> {
+                                               consumer.accept(s);
+                                               return s;
+                                           })
                 .then();
     }
 
     @Deprecated
-    public static <U> Mono<Void> reduceAsStreamAndAccept(
+    public static <U> Mono<Void> reduceAsInputStreamAndAccept(
             final Publisher<? extends DataBuffer> source, final boolean release,
             final BiConsumer<? super InputStream, ? super U> consumer,
             final Supplier<? extends U> supplier) {
@@ -527,7 +527,7 @@ public final class JinahyaDataBufferUtils {
         if (supplier == null) {
             throw new NullPointerException("supplier is null");
         }
-        return reduceAsStreamAndAccept(source, release, s -> consumer.accept(s, supplier.get()));
+        return reduceAsInputStreamAndAccept(source, release, s -> consumer.accept(s, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

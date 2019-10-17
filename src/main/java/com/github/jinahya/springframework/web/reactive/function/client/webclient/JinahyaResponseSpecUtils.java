@@ -38,7 +38,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsStreamAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.Objects.requireNonNull;
@@ -398,8 +398,13 @@ public final class JinahyaResponseSpecUtils {
     @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,
                                                          final Function<? super InputStream, ? extends R> function) {
-        return reduceAsStreamAndApply(requireNonNull(response, "response is null").bodyToFlux(DataBuffer.class), true,
-                                      requireNonNull(function, "function is null"));
+        if (response == null) {
+            throw new NullPointerException("response is null");
+        }
+        if (function == null) {
+            throw new NullPointerException("function is null");
+        }
+        return reduceAsInputStreamAndApply(response.bodyToFlux(DataBuffer.class), true, function);
     }
 
     @Deprecated

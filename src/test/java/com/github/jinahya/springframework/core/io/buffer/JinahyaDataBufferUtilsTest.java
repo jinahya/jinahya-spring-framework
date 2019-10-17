@@ -45,8 +45,8 @@ import java.util.stream.Stream;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsStreamAndAccept;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsStreamAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndAccept;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndAccept;
@@ -300,7 +300,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = reduceAsStreamAndApply(source, true, SR, () -> null).block();
+        final Long actual = reduceAsInputStreamAndApply(source, true, SR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -308,14 +308,14 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndAccept(final Flux<DataBuffer> source, final int expected) {
-        reduceAsStreamAndAccept(source,
-                                true,
-                                (s, u) -> {
-                                    final Long actual = SR.apply(s, u);
-                                    assertNotNull(actual);
-                                    assertEquals(expected, actual.longValue());
-                                },
-                                () -> null)
+        reduceAsInputStreamAndAccept(source,
+                                     true,
+                                     (s, u) -> {
+                                         final Long actual = SR.apply(s, u);
+                                         assertNotNull(actual);
+                                         assertEquals(expected, actual.longValue());
+                                     },
+                                     () -> null)
                 .block();
     }
 }

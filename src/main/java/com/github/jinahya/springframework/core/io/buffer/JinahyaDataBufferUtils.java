@@ -295,7 +295,7 @@ public final class JinahyaDataBufferUtils {
                                      try {
                                          p.sink().close();
                                      } catch (final IOException ioe) {
-                                         log.error("failed to close the pipe.sink: {}", p.sink(), ioe);
+                                         log.error("failed to close the pipe.sink", ioe);
                                          throw new RuntimeException(ioe);
                                      }
                                  })
@@ -306,7 +306,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
-                             log.error("failed to close the pipe.source: {}", p.source(), ioe);
+                             log.error("failed to close the pipe.source", ioe);
                              throw new RuntimeException(ioe);
                          }
                      });
@@ -415,7 +415,7 @@ public final class JinahyaDataBufferUtils {
                                          try {
                                              p.sink().close();
                                          } catch (final IOException ioe) {
-                                             log.error("failed to close the pipe.sink: {}", p.sink(), ioe);
+                                             log.error("failed to close the pipe.sink", ioe);
                                              throw new RuntimeException(ioe);
                                          }
                                      })
@@ -424,7 +424,7 @@ public final class JinahyaDataBufferUtils {
                          try {
                              p.source().close();
                          } catch (final IOException ioe) {
-                             log.error("failed to close the pipe.source: {}", p.source(), ioe);
+                             log.error("failed to close the pipe.source", ioe);
                              throw new RuntimeException(ioe);
                          }
                      });

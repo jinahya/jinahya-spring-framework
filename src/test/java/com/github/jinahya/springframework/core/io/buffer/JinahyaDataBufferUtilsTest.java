@@ -22,6 +22,7 @@ package com.github.jinahya.springframework.core.io.buffer;
 
 import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -56,7 +57,9 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * A class for unit-testing {@link JinahyaDataBufferUtils} class.
@@ -103,11 +106,7 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * A function for getting the size of the file.
-     */
-    public static final BiFunction<Path, Object, Long> FR = (f, u) -> {
+    public static final Function<Path, Long> FS1 = f -> {
         try {
             return size(f);
         } catch (final IOException ioe) {
@@ -115,7 +114,13 @@ public class JinahyaDataBufferUtilsTest {
         }
     };
 
-    public static final BiFunction<InputStream, Object, Long> SR = (s, u) -> {
+    /**
+     * A function for getting the size of the file.
+     */
+    public static final BiFunction<Path, Object, Long> FS2 = (f, u) -> FS1.apply(f);
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final Function<InputStream, Long> SR1 = s -> {
         try {
             long size = 0L;
             final byte[] buffer = new byte[128];
@@ -128,10 +133,10 @@ public class JinahyaDataBufferUtilsTest {
         }
     };
 
-    /**
-     * A function for getting size of the channel.
-     */
-    public static final BiFunction<ReadableByteChannel, Object, Long> CR = (c, u) -> {
+    public static final BiFunction<InputStream, Object, Long> SR2 = (s, u) -> SR1.apply(s);
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final Function<ReadableByteChannel, Long> CR1 = c -> {
         long s = 0L;
         final ByteBuffer b = ByteBuffer.allocate(128);
         try {
@@ -145,9 +150,12 @@ public class JinahyaDataBufferUtilsTest {
     };
 
     /**
-     * A function for getting size of the channel. Possibly escape.
+     * A function for getting size of the channel.
      */
-    public static final BiFunction<ReadableByteChannel, Object, Long> CE = (c, u) -> {
+    public static final BiFunction<ReadableByteChannel, Object, Long> CR = (c, u) -> CR1.apply(c);
+
+    // -----------------------------------------------------------------------------------------------------------------
+    public static final Function<ReadableByteChannel, Long> CE1 = c -> {
         long s = 0L;
         final ByteBuffer b = ByteBuffer.allocate(128);
         try {
@@ -163,7 +171,23 @@ public class JinahyaDataBufferUtilsTest {
         return s;
     };
 
-    // -------------------------------------------------------------------------------------------------------- writeAnd
+    /**
+     * A function for getting size of the channel. Possibly escape.
+     */
+    public static final BiFunction<ReadableByteChannel, Object, Long> CE2 = (c, u) -> CE1.apply(c);
+
+    // --------------------------------------------------------------------------------------- writeAndApplyWithFunction
+
+    /**
+     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method throws a {@code
+     * NullPointerException} when {@code function} is {@code null}.
+     */
+    @Test
+    void assertWriteAndApplyWithFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
+        @SuppressWarnings({"unchecked"})
+        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
+        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), null));
+    }
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
@@ -174,12 +198,67 @@ public class JinahyaDataBufferUtilsTest {
      */
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
-    void testWriteAndApply(final Flux<DataBuffer> source, final int expected,
-                           @TempFileParameterResolver.TempFile final Path destination) {
-        final Long actual = writeAndApply(source, destination, FR, () -> null).block();
+    void testWriteAndApplyWithFunction(final Flux<DataBuffer> source, final int expected,
+                                       @TempFileParameterResolver.TempFile final Path destination) {
+        final Long actual = writeAndApply(source, destination, FS1).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
+
+    // ------------------------------------------------------------------------------------- writeAndApplyWithBiFunction
+    @Test
+    void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
+        @SuppressWarnings({"unchecked"})
+        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
+        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), null, () -> null));
+    }
+
+    @Test
+    void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenSupplierIsNull() {
+        @SuppressWarnings({"unchecked"})
+        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
+        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), (f, u) -> f, null));
+    }
+
+    /**
+     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, BiFunction, Supplier)} method.
+     *
+     * @param source      a stream of data buffers.
+     * @param expected    an expected total size of data buffers.
+     * @param destination a temp file to which data buffers are written.
+     */
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteAndApplyWithBiFunction(final Flux<DataBuffer> source, final int expected,
+                                         @TempFileParameterResolver.TempFile final Path destination) {
+        final Long actual = writeAndApply(source, destination, FS2, () -> null).block();
+        assertNotNull(actual);
+        assertEquals(expected, actual.longValue());
+    }
+
+    // -------------------------------------------------------------------------------------- writeAndAcceptWithConsumer
+    @Test
+    void assertWriteAndAcceptWithConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
+        @SuppressWarnings({"unchecked"})
+        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
+        assertThrows(NullPointerException.class, () -> writeAndAccept(source, mock(Path.class), null));
+    }
+
+    @MethodSource({"sourceDataBuffersWithExpected"})
+    @ParameterizedTest
+    void testWriteAndAcceptWithConsumer(final Flux<DataBuffer> source, final int expected,
+                                        @TempFileParameterResolver.TempFile final Path destination) {
+        writeAndAccept(source,
+                       destination,
+                       f -> {
+                           final Long actual = FS1.apply(f);
+                           assertNotNull(actual);
+                           assertEquals(expected, actual.longValue());
+                       })
+                .block();
+    }
+
+    // ------------------------------------------------------------------------------------ writeAndAcceptWithBiConsumer
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, BiConsumer, Supplier)} method.
@@ -190,12 +269,12 @@ public class JinahyaDataBufferUtilsTest {
      */
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
-    void testWriteAndAccept(final Flux<DataBuffer> source, final int expected,
-                            @TempFileParameterResolver.TempFile final Path destination) {
-        writeAndAccept(source, destination, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
+    void testWriteAndAcceptWithBiConsumer(final Flux<DataBuffer> source, final int expected,
+                                          @TempFileParameterResolver.TempFile final Path destination) {
+        writeAndAccept(source, destination, (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null).block();
     }
 
-    // -------------------------------------------------------------------------------------------------- writeToTempAnd
+    // ------------------------------------------------------------------------------------ writeToTempAndWithBiConsumer
 
     /**
      * Test {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, BiFunction, Supplier)} method.
@@ -250,7 +329,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testPipeAndAcceptWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null)
+        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null)
                 .block();
     }
 
@@ -273,7 +352,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testPipeAndApplyWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = pipeAndApply(source, CE, () -> null).block();
+        final Long actual = pipeAndApply(source, CE2, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
@@ -293,14 +372,14 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testPipeAndAcceptWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
+        pipeAndAccept(source, (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = reduceAsInputStreamAndApply(source, true, SR, () -> null).block();
+        final Long actual = reduceAsInputStreamAndApply(source, true, SR2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -311,7 +390,7 @@ public class JinahyaDataBufferUtilsTest {
         reduceAsInputStreamAndAccept(source,
                                      true,
                                      (s, u) -> {
-                                         final Long actual = SR.apply(s, u);
+                                         final Long actual = SR2.apply(s, u);
                                          assertNotNull(actual);
                                          assertEquals(expected, actual.longValue());
                                      },

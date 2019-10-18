@@ -38,10 +38,10 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CE;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CE2;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.CR;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.FR;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.SR;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.FS2;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtilsTest.SR2;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.reduceBodyAsStreamAndAccept;
@@ -89,7 +89,7 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected,
                                      @TempFileParameterResolver.TempFile final Path file) {
-        final Long actual = writeBodyToFileAndApply(response, file, FR, () -> null).block();
+        final Long actual = writeBodyToFileAndApply(response, file, FS2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -106,7 +106,7 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
                                       @TempFileParameterResolver.TempFile final Path file) {
-        writeBodyToFileAndAccept(response, file, (f, u) -> assertEquals(expected, FR.apply(f, u)), () -> null).block();
+        writeBodyToFileAndAccept(response, file, (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -167,7 +167,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndAcceptWithExecutorEscape(final WebClient.ResponseSpec response, final long expected) {
-        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertTrue(CE.apply(c, u) <= expected),
+        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertTrue(CE2.apply(c, u) <= expected),
                           () -> null)
                 .block();
     }
@@ -184,7 +184,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndApplyWithCompletableFutureEscape(final WebClient.ResponseSpec response, final long expected) {
-        final Long actual = pipeBodyAndApply(response, CE, () -> null).block();
+        final Long actual = pipeBodyAndApply(response, CE2, () -> null).block();
         assertNotNull(actual);
         assertTrue(actual <= expected);
     }
@@ -198,7 +198,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testPipeBodyAndAcceptWithCompletableFutureEscape(final WebClient.ResponseSpec response, final long expected) {
-        pipeBodyAndAccept(response, (c, u) -> assertTrue(CE.apply(c, u) <= expected), () -> null).block();
+        pipeBodyAndAccept(response, (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null).block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -213,7 +213,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testReduceBodyAsStreamAndApply(final WebClient.ResponseSpec response, final long expected) {
-        final Long actual = reduceBodyAsStreamAndApply(response, SR, () -> null).block();
+        final Long actual = reduceBodyAsStreamAndApply(response, SR2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -230,7 +230,7 @@ class JinahyaResponseSpecUtilsTest {
     void testReduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response, final long expected) {
         reduceBodyAsStreamAndAccept(response,
                                     (s, u) -> {
-                                        final Long actual = SR.apply(s, u);
+                                        final Long actual = SR2.apply(s, u);
                                         assertNotNull(actual);
                                         assertEquals(expected, actual.longValue());
                                     },

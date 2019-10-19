@@ -20,6 +20,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
+import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -251,10 +252,10 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
+     * @see WebClient.ResponseSpec#bodyToFlux(Class)
+     * @see JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor, Function)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
-     * @see com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor,
-     * Function)
      */
     public static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
                                                final Function<? super ReadableByteChannel, ? extends R> function) {
@@ -436,13 +437,13 @@ public final class JinahyaResponseSpecUtils {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Reduces given response spec't body as an input stream and returns the result of specified function applies with
-     * it.
+     * Reduces given response spec't body into a single input stream and returns the result of specified function
+     * applies with it.
      *
      * @param response the response spec whose body is reduced.
      * @param function the function to be applied with the reduced body.
      * @param <R>      result type parameter
-     * @return a mono of the result of the function.
+     * @return a mono of the result of the {@code function}.
      */
     @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,

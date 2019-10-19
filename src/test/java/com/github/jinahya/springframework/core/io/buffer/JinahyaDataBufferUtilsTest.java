@@ -99,6 +99,11 @@ public class JinahyaDataBufferUtilsTest {
         });
     }
 
+    /**
+     * Sources a stream of data buffers and an expected total number of bytes of the stream.
+     *
+     * @return a stream of arguments.
+     */
     private static Stream<Arguments> sourceDataBuffersWithExpected() {
         final int expected = current().nextInt(8192);
         final Flux<DataBuffer> buffers = dataBuffers(expected);
@@ -106,6 +111,10 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * A function returns the {@link java.nio.file.Files#size(Path) size} of given file.
+     */
     public static final Function<Path, Long> FS1 = f -> {
         try {
             return size(f);
@@ -115,7 +124,7 @@ public class JinahyaDataBufferUtilsTest {
     };
 
     /**
-     * A function for getting the size of the file.
+     * A binary function returns the {@link java.nio.file.Files#size(Path) size} of given file.
      */
     public static final BiFunction<Path, Object, Long> FS2 = (f, u) -> FS1.apply(f);
 
@@ -387,6 +396,13 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
+
+    /**
+     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndApply(Publisher, BiFunction, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected value of total number of bytes from {@code source}.
+     */
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
@@ -395,6 +411,12 @@ public class JinahyaDataBufferUtilsTest {
         assertEquals(expected, actual.longValue());
     }
 
+    /**
+     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndAccept(Publisher, BiConsumer, Supplier)} method.
+     *
+     * @param source   a stream of data buffers.
+     * @param expected an expected value of total number of bytes from {@code source}.
+     */
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndAccept(final Flux<DataBuffer> source, final int expected) {

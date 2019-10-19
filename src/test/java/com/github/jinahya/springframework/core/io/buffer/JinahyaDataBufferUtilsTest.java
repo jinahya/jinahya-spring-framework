@@ -183,10 +183,9 @@ public class JinahyaDataBufferUtilsTest {
      * NullPointerException} when {@code function} is {@code null}.
      */
     @Test
+    @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
-        @SuppressWarnings({"unchecked"})
-        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), null));
+        assertThrows(NullPointerException.class, () -> writeAndApply(mock(Publisher.class), mock(Path.class), null));
     }
 
     /**
@@ -207,17 +206,17 @@ public class JinahyaDataBufferUtilsTest {
 
     // ------------------------------------------------------------------------------------- writeAndApplyWithBiFunction
     @Test
+    @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
-        @SuppressWarnings({"unchecked"})
-        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), null, () -> null));
+        assertThrows(NullPointerException.class,
+                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, () -> null));
     }
 
     @Test
+    @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenSupplierIsNull() {
-        @SuppressWarnings({"unchecked"})
-        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeAndApply(source, mock(Path.class), (f, u) -> f, null));
+        assertThrows(NullPointerException.class,
+                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), (f, u) -> f, null));
     }
 
     /**
@@ -238,10 +237,9 @@ public class JinahyaDataBufferUtilsTest {
 
     // -------------------------------------------------------------------------------------- writeAndAcceptWithConsumer
     @Test
+    @SuppressWarnings({"unchecked"})
     void assertWriteAndAcceptWithConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
-        @SuppressWarnings({"unchecked"})
-        final Publisher<DataBuffer> source = (Publisher<DataBuffer>) mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeAndAccept(source, mock(Path.class), null));
+        assertThrows(NullPointerException.class, () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null));
     }
 
     @MethodSource({"sourceDataBuffersWithExpected"})
@@ -259,6 +257,19 @@ public class JinahyaDataBufferUtilsTest {
     }
 
     // ------------------------------------------------------------------------------------ writeAndAcceptWithBiConsumer
+    @Test
+    @SuppressWarnings({"unchecked"})
+    void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
+        assertThrows(NullPointerException.class,
+                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, () -> null));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked"})
+    void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenSupplierIsNull() {
+        assertThrows(NullPointerException.class,
+                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), mock(BiConsumer.class), null));
+    }
 
     /**
      * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, BiConsumer, Supplier)} method.

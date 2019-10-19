@@ -39,7 +39,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
@@ -61,14 +60,6 @@ import static reactor.core.publisher.Mono.using;
  */
 @Slf4j
 public final class JinahyaDataBufferUtils {
-
-    // -----------------------------------------------------------------------------------------------------------------
-    private static <T> UnaryOperator<T> acceptAnd(final Consumer<? super T> consumer) {
-        return t -> {
-            consumer.accept(t);
-            return t;
-        };
-    }
 
     // -----------------------------------------------------------------------------------------------------------------
 
@@ -241,13 +232,12 @@ public final class JinahyaDataBufferUtils {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
-//        return writeToTempFileAndApply(source,
-//                                       c -> {
-//                                           consumer.accept(c);
-//                                           return c; // returning null is not welcome
-//                                       })
-//                .then();
-        return writeToTempFileAndApply(source, acceptAnd(consumer)).then();
+        return writeToTempFileAndApply(source,
+                                       c -> {
+                                           consumer.accept(c);
+                                           return c;
+                                       })
+                .then();
     }
 
     /**
@@ -365,14 +355,13 @@ public final class JinahyaDataBufferUtils {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
-//        return pipeAndApply(source,
-//                            executor,
-//                            c -> {
-//                                consumer.accept(c);
-//                                return c;
-//                            })
-//                .then();
-        return pipeAndApply(source, executor, acceptAnd(consumer)).then();
+        return pipeAndApply(source,
+                            executor,
+                            c -> {
+                                consumer.accept(c);
+                                return c;
+                            })
+                .then();
     }
 
     /**
@@ -483,13 +472,12 @@ public final class JinahyaDataBufferUtils {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
-//        return pipeAndApply(source,
-//                            c -> {
-//                                consumer.accept(c);
-//                                return c;
-//                            })
-//                .then();
-        return pipeAndApply(source, acceptAnd(consumer)).then();
+        return pipeAndApply(source,
+                            c -> {
+                                consumer.accept(c);
+                                return c;
+                            })
+                .then();
     }
 
     /**
@@ -565,19 +553,25 @@ public final class JinahyaDataBufferUtils {
         return reduceAsInputStreamAndApply(source, s -> function.apply(s, supplier.get()));
     }
 
+    /**
+     * Reduces given stream of data buffers into a single input stream and accepts it to specified consumer.
+     *
+     * @param source   the stream of data buffers to be reduced.
+     * @param consumer the consumer to be acepted with the input stream.
+     * @return a mono of {@link Void}.
+     */
     @Deprecated
     public static Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
                                                           final Consumer<? super InputStream> consumer) {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
-//        return reduceAsInputStreamAndApply(source,
-//                                           s -> {
-//                                               consumer.accept(s);
-//                                               return s;
-//                                           })
-//                .then();
-        return reduceAsInputStreamAndApply(source, acceptAnd(consumer)).then();
+        return reduceAsInputStreamAndApply(source,
+                                           s -> {
+                                               consumer.accept(s);
+                                               return s;
+                                           })
+                .then();
     }
 
     @Deprecated

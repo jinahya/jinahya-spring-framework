@@ -379,7 +379,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = reduceAsInputStreamAndApply(source, true, SR2, () -> null).block();
+        final Long actual = reduceAsInputStreamAndApply(source, SR2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -388,7 +388,6 @@ public class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testReduceAsStreamAndAccept(final Flux<DataBuffer> source, final int expected) {
         reduceAsInputStreamAndAccept(source,
-                                     true,
                                      (s, u) -> {
                                          final Long actual = SR2.apply(s, u);
                                          assertNotNull(actual);

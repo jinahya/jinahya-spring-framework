@@ -64,8 +64,8 @@ public final class JinahyaDataBufferUtils {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Write given stream of data buffers to the specified file and returns the result of specified function applied
-     * with the file.
+     * Writes given stream of data buffers to specified file and returns the result of specified function applied with
+     * the file.
      *
      * @param source      the stream of data buffers to be written to the file.
      * @param destination the file to which given stream is written.
@@ -290,16 +290,17 @@ public final class JinahyaDataBufferUtils {
         }
         return using(Pipe::open,
                      p -> {
-                         executor.execute(() -> write(source, p.sink())
-                                 .doFinally(s -> {
-                                     try {
-                                         p.sink().close();
-                                     } catch (final IOException ioe) {
-                                         log.error("failed to close the pipe.sink", ioe);
-                                         throw new RuntimeException(ioe);
-                                     }
-                                 })
-                                 .subscribe(releaseConsumer()));
+                         executor.execute(
+                                 () -> write(source, p.sink())
+                                         .doFinally(s -> {
+                                             try {
+                                                 p.sink().close();
+                                             } catch (final IOException ioe) {
+                                                 log.error("failed to close the pipe.sink", ioe);
+                                                 throw new RuntimeException(ioe);
+                                             }
+                                         })
+                                         .subscribe(releaseConsumer()));
                          return just(function.apply(p.source()));
                      },
                      p -> {
@@ -410,16 +411,17 @@ public final class JinahyaDataBufferUtils {
         }
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                             .doFirst(() -> write(source, p.sink())
-                                     .doFinally(s -> {
-                                         try {
-                                             p.sink().close();
-                                         } catch (final IOException ioe) {
-                                             log.error("failed to close the pipe.sink", ioe);
-                                             throw new RuntimeException(ioe);
-                                         }
-                                     })
-                                     .subscribe(releaseConsumer())),
+                             .doFirst(
+                                     () -> write(source, p.sink())
+                                             .doFinally(s -> {
+                                                 try {
+                                                     p.sink().close();
+                                                 } catch (final IOException ioe) {
+                                                     log.error("failed to close the pipe.sink", ioe);
+                                                     throw new RuntimeException(ioe);
+                                                 }
+                                             })
+                                             .subscribe(releaseConsumer())),
                      p -> {
                          try {
                              p.source().close();
@@ -504,11 +506,10 @@ public final class JinahyaDataBufferUtils {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Reduces given stream of data buffers into an input stream and returns the result of the function applied with
-     * it.
+     * Reduces given stream of data buffers into a single input stream and returns the result of the function applied
+     * with it.
      *
      * @param source   the stream of data buffers to be reduced.
-     * @param release  a value to passed to {@link DataBuffer#asInputStream(boolean)}.
      * @param function the function to be applied with the stream.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
@@ -517,7 +518,6 @@ public final class JinahyaDataBufferUtils {
      */
     @Deprecated
     public static <R> Mono<R> reduceAsInputStreamAndApply(final Publisher<? extends DataBuffer> source,
-                                                          final boolean release,
                                                           final Function<? super InputStream, ? extends R> function) {
         if (source == null) {
             throw new NullPointerException("source is null");
@@ -526,7 +526,7 @@ public final class JinahyaDataBufferUtils {
             throw new NullPointerException("function is null");
         }
         return from(source)
-                .map(b -> b.asInputStream(release))
+                .map(b -> b.asInputStream(true))
                 .reduce(SequenceInputStream::new)
                 .map(s -> {
                     try {
@@ -541,7 +541,7 @@ public final class JinahyaDataBufferUtils {
 
     @Deprecated
     public static <U, R> Mono<R> reduceAsInputStreamAndApply(
-            final Publisher<? extends DataBuffer> source, final boolean release,
+            final Publisher<? extends DataBuffer> source,
             final BiFunction<? super InputStream, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
         if (function == null) {
@@ -550,18 +550,16 @@ public final class JinahyaDataBufferUtils {
         if (supplier == null) {
             throw new NullPointerException("supplier is null");
         }
-        return reduceAsInputStreamAndApply(source, release, s -> function.apply(s, supplier.get()));
+        return reduceAsInputStreamAndApply(source, s -> function.apply(s, supplier.get()));
     }
 
     @Deprecated
     public static Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
-                                                          final boolean release,
                                                           final Consumer<? super InputStream> consumer) {
         if (consumer == null) {
             throw new NullPointerException("consumer is null");
         }
         return reduceAsInputStreamAndApply(source,
-                                           release,
                                            s -> {
                                                consumer.accept(s);
                                                return s;
@@ -571,7 +569,7 @@ public final class JinahyaDataBufferUtils {
 
     @Deprecated
     public static <U> Mono<Void> reduceAsInputStreamAndAccept(
-            final Publisher<? extends DataBuffer> source, final boolean release,
+            final Publisher<? extends DataBuffer> source,
             final BiConsumer<? super InputStream, ? super U> consumer,
             final Supplier<? extends U> supplier) {
         if (consumer == null) {
@@ -580,7 +578,7 @@ public final class JinahyaDataBufferUtils {
         if (supplier == null) {
             throw new NullPointerException("supplier is null");
         }
-        return reduceAsInputStreamAndAccept(source, release, s -> consumer.accept(s, supplier.get()));
+        return reduceAsInputStreamAndAccept(source, s -> consumer.accept(s, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------

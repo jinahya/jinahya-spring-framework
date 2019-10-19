@@ -453,7 +453,7 @@ public final class JinahyaResponseSpecUtils {
         if (function == null) {
             throw new NullPointerException("function is null");
         }
-        return reduceAsInputStreamAndApply(response.bodyToFlux(DataBuffer.class), true, function);
+        return reduceAsInputStreamAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
     @Deprecated

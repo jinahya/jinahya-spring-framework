@@ -438,7 +438,7 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Reduces given response spec't body into a single input stream and returns the result of specified function
-     * applies with it.
+     * applied with it.
      *
      * @param response the response spec whose body is reduced.
      * @param function the function to be applied with the reduced body.

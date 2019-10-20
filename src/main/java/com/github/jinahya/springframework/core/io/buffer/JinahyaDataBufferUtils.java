@@ -62,6 +62,20 @@ import static reactor.core.publisher.Mono.using;
 public final class JinahyaDataBufferUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
+    public static Runnable writer(final Publisher<DataBuffer> source, final Pipe.SinkChannel destination) {
+        return () -> write(source, destination)
+                .doOnError(t -> log.error("failed to write {} to {}", source, destination, t))
+                .doFinally(st -> {
+                    try {
+                        destination.close();
+                    } catch (final IOException ioe) {
+                        log.error("failed to close {}", destination, ioe);
+                    }
+                })
+                .subscribe(releaseConsumer());
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
 
     /**
      * Writes given stream of data buffers to specified file and returns the result of specified function applied with
@@ -290,17 +304,7 @@ public final class JinahyaDataBufferUtils {
         }
         return using(Pipe::open,
                      p -> {
-                         executor.execute(
-                                 () -> write(source, p.sink())
-                                         .doFinally(s -> {
-                                             try {
-                                                 p.sink().close();
-                                             } catch (final IOException ioe) {
-                                                 log.error("failed to close the pipe.sink", ioe);
-                                                 throw new RuntimeException(ioe);
-                                             }
-                                         })
-                                         .subscribe(releaseConsumer()));
+                         executor.execute(writer(source, p.sink()));
                          return just(function.apply(p.source()));
                      },
                      p -> {
@@ -411,17 +415,7 @@ public final class JinahyaDataBufferUtils {
         }
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                             .doFirst(
-                                     () -> write(source, p.sink())
-                                             .doFinally(s -> {
-                                                 try {
-                                                     p.sink().close();
-                                                 } catch (final IOException ioe) {
-                                                     log.error("failed to close the pipe.sink", ioe);
-                                                     throw new RuntimeException(ioe);
-                                                 }
-                                             })
-                                             .subscribe(releaseConsumer())),
+                             .doFirst(writer(source, p.sink())),
                      p -> {
                          try {
                              p.source().close();

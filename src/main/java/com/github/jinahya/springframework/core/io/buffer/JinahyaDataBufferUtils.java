@@ -187,10 +187,8 @@ public final class JinahyaDataBufferUtils {
         }
         return using(() -> createTempFile(null, null),
                      t -> writeAndApply(source, t, f -> {
-                         try {
-                             try (ReadableByteChannel channel = open(f, READ)) {
-                                 return function.apply(channel);
-                             }
+                         try (ReadableByteChannel channel = open(f, READ)) {
+                             return function.apply(channel);
                          } catch (final IOException ioe) {
                              log.error("failed to apply channel", ioe);
                              throw new RuntimeException(ioe);
@@ -523,10 +521,8 @@ public final class JinahyaDataBufferUtils {
                 .map(b -> b.asInputStream(true))
                 .reduce(SequenceInputStream::new)
                 .map(s -> {
-                    try {
-                        try (InputStream c = s) {
-                            return function.apply(c);
-                        }
+                    try (InputStream c = s) {
+                        return function.apply(c);
                     } catch (final IOException ioe) {
                         throw new RuntimeException(ioe);
                     }

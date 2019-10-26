@@ -489,6 +489,9 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the reduced body.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
+     * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, Consumer)
+     * @deprecated Not efficient at all.
      */
     @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,

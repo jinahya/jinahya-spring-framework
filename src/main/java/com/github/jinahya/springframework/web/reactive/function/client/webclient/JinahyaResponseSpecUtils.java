@@ -270,7 +270,7 @@ public final class JinahyaResponseSpecUtils {
                      p -> {
                          executor.execute(
                                  () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-                                         .doOnError(t -> log.error("failed to write body to pipe.sink"))
+                                         .doOnError(t -> log.error("failed to write body to pipe.sink", t))
                                          .doFinally(st -> {
                                              try {
                                                  p.sink().close();
@@ -388,8 +388,8 @@ public final class JinahyaResponseSpecUtils {
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
                              .doFirst(() -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-                                     .doOnError(t -> log.error("failed to write body to pipe.sink"))
-                                     .doFinally(st -> {
+                                     .doOnError(t -> log.error("failed to write body to pipe.sink", t))
+                                     .doFinally(s -> {
                                          try {
                                              p.sink().close();
                                          } catch (final IOException ioe) {

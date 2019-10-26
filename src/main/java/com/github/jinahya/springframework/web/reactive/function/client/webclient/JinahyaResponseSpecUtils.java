@@ -482,7 +482,7 @@ public final class JinahyaResponseSpecUtils {
         return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));
     }
 
-    // -----------------------------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------- reduceBodyAsStreamAnd
 
     /**
      * Reduces given response spec't body into a single input stream and returns the result of specified function

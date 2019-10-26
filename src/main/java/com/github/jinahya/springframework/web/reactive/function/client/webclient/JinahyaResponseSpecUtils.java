@@ -20,9 +20,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
-import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -260,7 +258,6 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see WebClient.ResponseSpec#bodyToFlux(Class)
-     * @see JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor, Function)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */

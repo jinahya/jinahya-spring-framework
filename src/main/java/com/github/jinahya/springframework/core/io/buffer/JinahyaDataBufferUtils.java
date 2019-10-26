@@ -27,8 +27,6 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.OpenOption;
@@ -44,12 +42,9 @@ import static java.nio.channels.FileChannel.open;
 import static java.nio.file.Files.createTempFile;
 import static java.nio.file.Files.deleteIfExists;
 import static java.nio.file.StandardOpenOption.READ;
-import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
 import static org.springframework.core.io.buffer.DataBufferUtils.write;
-import static reactor.core.publisher.Flux.from;
-import static reactor.core.publisher.Mono.fromFuture;
 import static reactor.core.publisher.Mono.just;
 import static reactor.core.publisher.Mono.using;
 
@@ -390,192 +385,192 @@ public final class JinahyaDataBufferUtils {
         return pipeAndAccept(source, executor, c -> consumer.accept(c, supplier.get()));
     }
 
+//    // -----------------------------------------------------------------------------------------------------------------
+//
+//    /**
+//     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
+//     * Pipe#source() source} of the pipe.
+//     *
+//     * @param source   the stream of data buffers to be written to {@link Pipe#sink() sink}.
+//     * @param function the function to be applied with the {@link Pipe#source() source}.
+//     * @param <R>      result type parameter
+//     * @return a mono of result of the function.
+//     * @see org.springframework.core.task.support.ExecutorServiceAdapter
+//     * @see #pipeAndApply(Publisher, BiFunction, Supplier)
+//     */
+//    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
+//                                           final Function<? super ReadableByteChannel, ? extends R> function) {
+//        if (source == null) {
+//            throw new NullPointerException("source is null");
+//        }
+//        if (function == null) {
+//            throw new NullPointerException("function is null");
+//        }
+//        return using(Pipe::open,
+//                     p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
+//                             .doFirst(writer(source, p.sink())),
+//                     p -> {
+//                         try {
+//                             p.source().close();
+//                         } catch (final IOException ioe) {
+//                             log.error("failed to close the pipe.source", ioe);
+//                             throw new RuntimeException(ioe);
+//                         }
+//                     });
+//    }
+//
+//    /**
+//     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
+//     * Pipe#source() source} of the pipe and a second argument from specified supplier.
+//     *
+//     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+//     * @param function the function to be applied with the {@link Pipe#source() source}.
+//     * @param supplier the supplier for the second argument of the function.
+//     * @param <U>      second argument type parameter
+//     * @param <R>      result type parameter
+//     * @return a mono of result of the function.
+//     * @see #pipeAndApply(Publisher, Function)
+//     */
+//    public static <U, R> Mono<R> pipeAndApply(
+//            final Publisher<DataBuffer> source,
+//            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
+//            final Supplier<? extends U> supplier) {
+//        if (function == null) {
+//            throw new NullPointerException("function is null");
+//        }
+//        if (supplier == null) {
+//            throw new NullPointerException("supplier is null");
+//        }
+//        return pipeAndApply(source, c -> function.apply(c, supplier.get()));
+//    }
+//
+//    /**
+//     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe to specified
+//     * consumer.
+//     *
+//     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
+//     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
+//     * @return a mono of {@link Void}.
+//     * @see #pipeAndApply(Publisher, Function)
+//     * @see #pipeAndAccept(Publisher, BiConsumer, Supplier)
+//     */
+//    public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
+//                                           final Consumer<? super ReadableByteChannel> consumer) {
+//        if (consumer == null) {
+//            throw new NullPointerException("consumer is null");
+//        }
+//        return pipeAndApply(source,
+//                            c -> {
+//                                consumer.accept(c);
+//                                return c;
+//                            })
+//                .then();
+//    }
+//
+//    /**
+//     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe, along with an
+//     * argument from specified supplier, to specified consumer.
+//     *
+//     * @param source   the stream of data buffers to be pied to {@link Pipe#sink() sink}.
+//     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
+//     * @param supplier the supplier for the second argument.
+//     * @param <U>      second argument type parameter
+//     * @return a mono of {@link Void}.
+//     * @see #pipeAndAccept(Publisher, Consumer)
+//     */
+//    public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
+//                                               final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+//                                               final Supplier<? extends U> supplier) {
+//        if (consumer == null) {
+//            throw new NullPointerException("consumer is null");
+//        }
+//        if (supplier == null) {
+//            throw new NullPointerException("supplier is null");
+//        }
+//        return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
+//    }
+
     // -----------------------------------------------------------------------------------------------------------------
 
-    /**
-     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#source() source} of the pipe.
-     *
-     * @param source   the stream of data buffers to be written to {@link Pipe#sink() sink}.
-     * @param function the function to be applied with the {@link Pipe#source() source}.
-     * @param <R>      result type parameter
-     * @return a mono of result of the function.
-     * @see org.springframework.core.task.support.ExecutorServiceAdapter
-     * @see #pipeAndApply(Publisher, BiFunction, Supplier)
-     */
-    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
-                                           final Function<? super ReadableByteChannel, ? extends R> function) {
-        if (source == null) {
-            throw new NullPointerException("source is null");
-        }
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        return using(Pipe::open,
-                     p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                             .doFirst(writer(source, p.sink())),
-                     p -> {
-                         try {
-                             p.source().close();
-                         } catch (final IOException ioe) {
-                             log.error("failed to close the pipe.source", ioe);
-                             throw new RuntimeException(ioe);
-                         }
-                     });
-    }
-
-    /**
-     * Pipes given stream of data buffers and returns the result of specified function applied with the {@link
-     * Pipe#source() source} of the pipe and a second argument from specified supplier.
-     *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
-     * @param function the function to be applied with the {@link Pipe#source() source}.
-     * @param supplier the supplier for the second argument of the function.
-     * @param <U>      second argument type parameter
-     * @param <R>      result type parameter
-     * @return a mono of result of the function.
-     * @see #pipeAndApply(Publisher, Function)
-     */
-    public static <U, R> Mono<R> pipeAndApply(
-            final Publisher<DataBuffer> source,
-            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
-            final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return pipeAndApply(source, c -> function.apply(c, supplier.get()));
-    }
-
-    /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe to specified
-     * consumer.
-     *
-     * @param source   the stream of data buffers to be piped to {@link Pipe#sink() sink}.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
-     * @return a mono of {@link Void}.
-     * @see #pipeAndApply(Publisher, Function)
-     * @see #pipeAndAccept(Publisher, BiConsumer, Supplier)
-     */
-    public static Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
-                                           final Consumer<? super ReadableByteChannel> consumer) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        return pipeAndApply(source,
-                            c -> {
-                                consumer.accept(c);
-                                return c;
-                            })
-                .then();
-    }
-
-    /**
-     * Pipes given stream of data buffers and accepts the {@link Pipe#source() source} of the pipe, along with an
-     * argument from specified supplier, to specified consumer.
-     *
-     * @param source   the stream of data buffers to be pied to {@link Pipe#sink() sink}.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source() source}.
-     * @param supplier the supplier for the second argument.
-     * @param <U>      second argument type parameter
-     * @return a mono of {@link Void}.
-     * @see #pipeAndAccept(Publisher, Consumer)
-     */
-    public static <U> Mono<Void> pipeAndAccept(final Publisher<DataBuffer> source,
-                                               final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
-                                               final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return pipeAndAccept(source, c -> consumer.accept(c, supplier.get()));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Reduces given stream of data buffers into a single input stream and returns the result of the function applied
-     * with it.
-     *
-     * @param source   the stream of data buffers to be reduced.
-     * @param function the function to be applied with the stream.
-     * @param <R>      result type parameter
-     * @return a mono of the result of the {@code function}.
-     * @see DataBuffer#asInputStream(boolean)
-     * @see SequenceInputStream
-     */
-    @Deprecated
-    public static <R> Mono<R> reduceAsInputStreamAndApply(final Publisher<? extends DataBuffer> source,
-                                                          final Function<? super InputStream, ? extends R> function) {
-        if (source == null) {
-            throw new NullPointerException("source is null");
-        }
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        return from(source)
-                .map(b -> b.asInputStream(true))
-                .reduce(SequenceInputStream::new)
-                .map(s -> {
-                    try (InputStream c = s) {
-                        return function.apply(c);
-                    } catch (final IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                });
-    }
-
-    @Deprecated
-    public static <U, R> Mono<R> reduceAsInputStreamAndApply(
-            final Publisher<? extends DataBuffer> source,
-            final BiFunction<? super InputStream, ? super U, ? extends R> function,
-            final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return reduceAsInputStreamAndApply(source, s -> function.apply(s, supplier.get()));
-    }
-
-    /**
-     * Reduces given stream of data buffers into a single input stream and accepts it to specified consumer.
-     *
-     * @param source   the stream of data buffers to be reduced.
-     * @param consumer the consumer to be acepted with the input stream.
-     * @return a mono of {@link Void}.
-     */
-    @Deprecated
-    public static Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
-                                                          final Consumer<? super InputStream> consumer) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        return reduceAsInputStreamAndApply(source,
-                                           s -> {
-                                               consumer.accept(s);
-                                               return s;
-                                           })
-                .then();
-    }
-
-    @Deprecated
-    public static <U> Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
-                                                              final BiConsumer<? super InputStream, ? super U> consumer,
-                                                              final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return reduceAsInputStreamAndAccept(source, s -> consumer.accept(s, supplier.get()));
-    }
+//    /**
+//     * Reduces given stream of data buffers into a single input stream and returns the result of the function applied
+//     * with it.
+//     *
+//     * @param source   the stream of data buffers to be reduced.
+//     * @param function the function to be applied with the stream.
+//     * @param <R>      result type parameter
+//     * @return a mono of the result of the {@code function}.
+//     * @see DataBuffer#asInputStream(boolean)
+//     * @see SequenceInputStream
+//     */
+//    @Deprecated
+//    public static <R> Mono<R> reduceAsInputStreamAndApply(final Publisher<? extends DataBuffer> source,
+//                                                          final Function<? super InputStream, ? extends R> function) {
+//        if (source == null) {
+//            throw new NullPointerException("source is null");
+//        }
+//        if (function == null) {
+//            throw new NullPointerException("function is null");
+//        }
+//        return from(source)
+//                .map(b -> b.asInputStream(true))
+//                .reduce(SequenceInputStream::new)
+//                .map(s -> {
+//                    try (InputStream c = s) {
+//                        return function.apply(c);
+//                    } catch (final IOException ioe) {
+//                        throw new RuntimeException(ioe);
+//                    }
+//                });
+//    }
+//
+//    @Deprecated
+//    public static <U, R> Mono<R> reduceAsInputStreamAndApply(
+//            final Publisher<? extends DataBuffer> source,
+//            final BiFunction<? super InputStream, ? super U, ? extends R> function,
+//            final Supplier<? extends U> supplier) {
+//        if (function == null) {
+//            throw new NullPointerException("function is null");
+//        }
+//        if (supplier == null) {
+//            throw new NullPointerException("supplier is null");
+//        }
+//        return reduceAsInputStreamAndApply(source, s -> function.apply(s, supplier.get()));
+//    }
+//
+//    /**
+//     * Reduces given stream of data buffers into a single input stream and accepts it to specified consumer.
+//     *
+//     * @param source   the stream of data buffers to be reduced.
+//     * @param consumer the consumer to be acepted with the input stream.
+//     * @return a mono of {@link Void}.
+//     */
+//    @Deprecated
+//    public static Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
+//                                                          final Consumer<? super InputStream> consumer) {
+//        if (consumer == null) {
+//            throw new NullPointerException("consumer is null");
+//        }
+//        return reduceAsInputStreamAndApply(source,
+//                                           s -> {
+//                                               consumer.accept(s);
+//                                               return s;
+//                                           })
+//                .then();
+//    }
+//
+//    @Deprecated
+//    public static <U> Mono<Void> reduceAsInputStreamAndAccept(final Publisher<? extends DataBuffer> source,
+//                                                              final BiConsumer<? super InputStream, ? super U> consumer,
+//                                                              final Supplier<? extends U> supplier) {
+//        if (consumer == null) {
+//            throw new NullPointerException("consumer is null");
+//        }
+//        if (supplier == null) {
+//            throw new NullPointerException("supplier is null");
+//        }
+//        return reduceAsInputStreamAndAccept(source, s -> consumer.accept(s, supplier.get()));
+//    }
 
     // -----------------------------------------------------------------------------------------------------------------
 

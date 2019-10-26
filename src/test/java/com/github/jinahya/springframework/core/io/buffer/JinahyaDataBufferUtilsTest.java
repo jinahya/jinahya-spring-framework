@@ -44,21 +44,15 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndAccept;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndAccept;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.nio.file.Files.size;
-import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -322,111 +316,111 @@ public class JinahyaDataBufferUtilsTest {
         writeToTempFileAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
     }
 
-    // --------------------------------------------------------------------------------------------------------- pipeAnd
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndApplyWithExecutor(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndApplyWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
-        assertNotNull(actual);
-        assertTrue(actual <= expected);
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndAcceptWithExecutor(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
-                .block();
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndAcceptWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null)
-                .block();
-    }
-
-    // --------------------------------------------------------------------------------------------------------- pipeAnd
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#pipeAndApply(Publisher, BiFunction, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected total size of data buffers.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndApplyWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = pipeAndApply(source, CR, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndApplyWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = pipeAndApply(source, CE2, () -> null).block();
-        assertNotNull(actual);
-        assertTrue(actual <= expected);
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#pipeAndAccept(Publisher, BiConsumer, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected total size of data buffers.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndAcceptWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testPipeAndAcceptWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
-        pipeAndAccept(source, (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null).block();
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndApply(Publisher, BiFunction, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected value of total number of bytes from {@code source}.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = reduceAsInputStreamAndApply(source, SR2, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndAccept(Publisher, BiConsumer, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected value of total number of bytes from {@code source}.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testReduceAsStreamAndAccept(final Flux<DataBuffer> source, final int expected) {
-        reduceAsInputStreamAndAccept(source,
-                                     (s, u) -> {
-                                         final Long actual = SR2.apply(s, u);
-                                         assertNotNull(actual);
-                                         assertEquals(expected, actual.longValue());
-                                     },
-                                     () -> null)
-                .block();
-    }
+//    // --------------------------------------------------------------------------------------------------------- pipeAnd
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndApplyWithExecutor(final Flux<DataBuffer> source, final int expected) {
+//        final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
+//        assertNotNull(actual);
+//        assertEquals(expected, actual.longValue());
+//    }
+//
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndApplyWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
+//        final Long actual = pipeAndApply(source, newSingleThreadExecutor(), CR, () -> null).block();
+//        assertNotNull(actual);
+//        assertTrue(actual <= expected);
+//    }
+//
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndAcceptWithExecutor(final Flux<DataBuffer> source, final int expected) {
+//        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null)
+//                .block();
+//    }
+//
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndAcceptWithExecutorEscape(final Flux<DataBuffer> source, final int expected) {
+//        pipeAndAccept(source, newSingleThreadExecutor(), (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null)
+//                .block();
+//    }
+//
+//    // --------------------------------------------------------------------------------------------------------- pipeAnd
+//
+//    /**
+//     * Tests {@link JinahyaDataBufferUtils#pipeAndApply(Publisher, BiFunction, Supplier)} method.
+//     *
+//     * @param source   a stream of data buffers.
+//     * @param expected an expected total size of data buffers.
+//     */
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndApplyWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
+//        final Long actual = pipeAndApply(source, CR, () -> null).block();
+//        assertNotNull(actual);
+//        assertEquals(expected, actual.longValue());
+//    }
+//
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndApplyWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
+//        final Long actual = pipeAndApply(source, CE2, () -> null).block();
+//        assertNotNull(actual);
+//        assertTrue(actual <= expected);
+//    }
+//
+//    /**
+//     * Tests {@link JinahyaDataBufferUtils#pipeAndAccept(Publisher, BiConsumer, Supplier)} method.
+//     *
+//     * @param source   a stream of data buffers.
+//     * @param expected an expected total size of data buffers.
+//     */
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndAcceptWithCompletableFuture(final Flux<DataBuffer> source, final int expected) {
+//        pipeAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
+//    }
+//
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testPipeAndAcceptWithCompletableFutureEscape(final Flux<DataBuffer> source, final int expected) {
+//        pipeAndAccept(source, (c, u) -> assertTrue(CE2.apply(c, u) <= expected), () -> null).block();
+//    }
+//
+//    // -----------------------------------------------------------------------------------------------------------------
+//
+//    /**
+//     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndApply(Publisher, BiFunction, Supplier)} method.
+//     *
+//     * @param source   a stream of data buffers.
+//     * @param expected an expected value of total number of bytes from {@code source}.
+//     */
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testReduceAsStreamAndApply(final Flux<DataBuffer> source, final int expected) {
+//        final Long actual = reduceAsInputStreamAndApply(source, SR2, () -> null).block();
+//        assertNotNull(actual);
+//        assertEquals(expected, actual.longValue());
+//    }
+//
+//    /**
+//     * Tests {@link JinahyaDataBufferUtils#reduceAsInputStreamAndAccept(Publisher, BiConsumer, Supplier)} method.
+//     *
+//     * @param source   a stream of data buffers.
+//     * @param expected an expected value of total number of bytes from {@code source}.
+//     */
+//    @MethodSource({"sourceDataBuffersWithExpected"})
+//    @ParameterizedTest
+//    void testReduceAsStreamAndAccept(final Flux<DataBuffer> source, final int expected) {
+//        reduceAsInputStreamAndAccept(source,
+//                                     (s, u) -> {
+//                                         final Long actual = SR2.apply(s, u);
+//                                         assertNotNull(actual);
+//                                         assertEquals(expected, actual.longValue());
+//                                     },
+//                                     () -> null)
+//                .block();
+//    }
 }

@@ -27,7 +27,9 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
@@ -38,11 +40,16 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAsInputStreamAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
+import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
+import static org.springframework.core.io.buffer.DataBufferUtils.write;
+import static reactor.core.publisher.Flux.from;
+import static reactor.core.publisher.Mono.fromFuture;
+import static reactor.core.publisher.Mono.just;
+import static reactor.core.publisher.Mono.using;
 
 /**
  * Utilities for {@link WebClient.ResponseSpec}.
@@ -262,7 +269,29 @@ public final class JinahyaResponseSpecUtils {
         if (response == null) {
             throw new NullPointerException("response is null");
         }
-        return pipeAndApply(response.bodyToFlux(DataBuffer.class), executor, function);
+        return using(Pipe::open,
+                     p -> {
+                         executor.execute(
+                                 () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
+                                         .doOnError(t -> log.error("failed to write body to pipe.sink"))
+                                         .doFinally(st -> {
+                                             try {
+                                                 p.sink().close();
+                                             } catch (final IOException ioe) {
+                                                 log.error("failed to close pipe.sink", ioe);
+                                             }
+                                         })
+                                         .subscribe(releaseConsumer()));
+                         return just(function.apply(p.source()));
+                     },
+                     p -> {
+                         try {
+                             p.source().close();
+                         } catch (final IOException ioe) {
+                             log.error("failed to close the pipe.source", ioe);
+                             throw new RuntimeException(ioe);
+                         }
+                     });
     }
 
     /**
@@ -359,7 +388,26 @@ public final class JinahyaResponseSpecUtils {
         if (response == null) {
             throw new NullPointerException("response is null");
         }
-        return pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return using(Pipe::open,
+                     p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
+                             .doFirst(() -> write(response.bodyToFlux(DataBuffer.class), p.sink())
+                                     .doOnError(t -> log.error("failed to write body to pipe.sink"))
+                                     .doFinally(st -> {
+                                         try {
+                                             p.sink().close();
+                                         } catch (final IOException ioe) {
+                                             log.error("failed to close pipe.sink", ioe);
+                                         }
+                                     })
+                                     .subscribe(releaseConsumer())),
+                     p -> {
+                         try {
+                             p.source().close();
+                         } catch (final IOException ioe) {
+                             log.error("failed to close the pipe.source", ioe);
+                             throw new RuntimeException(ioe);
+                         }
+                     });
     }
 
     /**
@@ -454,7 +502,16 @@ public final class JinahyaResponseSpecUtils {
         if (function == null) {
             throw new NullPointerException("function is null");
         }
-        return reduceAsInputStreamAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return from(response.bodyToFlux(DataBuffer.class))
+                .map(b -> b.asInputStream(true))
+                .reduce(SequenceInputStream::new)
+                .map(s -> {
+                    try (InputStream c = s) {
+                        return function.apply(c);
+                    } catch (final IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                });
     }
 
     @Deprecated

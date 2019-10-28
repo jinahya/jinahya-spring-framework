@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -47,6 +48,7 @@
     <maven.javadoc.failOnError>false</maven.javadoc.failOnError> <!-- no public or protected classes found to document -->
     <version.maven-failsafe>${version.maven-surefire}</version.maven-failsafe>
     <version.maven-surefire>3.0.0-M3</version.maven-surefire>
+    <version.org.jboss.weld>2.0.1.Final</version.org.jboss.weld>
     <version.org.junit.jupiter>5.5.2</version.org.junit.jupiter>
     <version.org.mockito>3.1.0</version.org.mockito>
     <version.org.springframework>5.2.0.RELEASE</version.org.springframework>
@@ -83,6 +85,22 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.jboss.weld</groupId>
+      <artifactId>weld-junit5</artifactId>
+      <version>${version.org.jboss.weld}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion> <!-- dependencyConvergence -->
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-api</artifactId>
+        </exclusion>
+        <exclusion> <!-- dependencyConvergence -->
+          <groupId>org.junit.jupiter</groupId>
+          <artifactId>junit-jupiter-engine</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <version>${version.org.junit.jupiter}</version>
@@ -112,7 +130,7 @@
       <version>${version.org.mockito}</version>
       <scope>test</scope>
       <exclusions>
-        <exclusion>
+        <exclusion> <!-- dependencyConvergence -->
           <groupId>org.junit.jupiter</groupId>
           <artifactId>junit-jupiter-api</artifactId>
         </exclusion>
@@ -218,7 +236,7 @@
             </goals>
             <configuration>
               <rules>
-                <dependencyConvergence />
+                <dependencyConvergence/>
                 <requireJavaVersion>
                   <version>[1.8.0,)</version>
                 </requireJavaVersion>

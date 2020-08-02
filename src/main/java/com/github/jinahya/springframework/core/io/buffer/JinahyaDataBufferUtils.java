@@ -86,7 +86,9 @@ public final class JinahyaDataBufferUtils {
         if (function == null) {
             throw new NullPointerException("function is null");
         }
-        return write(source, destination).thenReturn(destination).map(function);
+        return write(source, destination)
+                .thenReturn(destination)
+                .map(function);
     }
 
     /**

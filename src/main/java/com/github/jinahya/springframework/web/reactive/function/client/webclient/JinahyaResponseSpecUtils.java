@@ -20,9 +20,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
-import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -260,7 +258,6 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>      result type parameter
      * @return a mono of result of the function.
      * @see WebClient.ResponseSpec#bodyToFlux(Class)
-     * @see JinahyaDataBufferUtils#pipeAndApply(Publisher, Executor, Function)
      * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
      * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
      */
@@ -273,7 +270,7 @@ public final class JinahyaResponseSpecUtils {
                      p -> {
                          executor.execute(
                                  () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-                                         .doOnError(t -> log.error("failed to write body to pipe.sink"))
+                                         .doOnError(t -> log.error("failed to write body to pipe.sink", t))
                                          .doFinally(st -> {
                                              try {
                                                  p.sink().close();
@@ -391,8 +388,8 @@ public final class JinahyaResponseSpecUtils {
         return using(Pipe::open,
                      p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
                              .doFirst(() -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-                                     .doOnError(t -> log.error("failed to write body to pipe.sink"))
-                                     .doFinally(st -> {
+                                     .doOnError(t -> log.error("failed to write body to pipe.sink", t))
+                                     .doFinally(s -> {
                                          try {
                                              p.sink().close();
                                          } catch (final IOException ioe) {
@@ -492,6 +489,9 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the reduced body.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
+     * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, Consumer)
+     * @deprecated Not efficient at all.
      */
     @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,

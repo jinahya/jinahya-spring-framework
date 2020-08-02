@@ -26,7 +26,6 @@ import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -34,14 +33,26 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.reflect.Parameter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static java.lang.Runtime.getRuntime;
+import static java.nio.file.Files.createTempFile;
+import static java.nio.file.Files.deleteIfExists;
+
+/**
+ * A parameter resolver for a temporarily created file which is going to be deleted at the end of the runtime.
+ *
+ * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
+ */
 @Slf4j
 public class TempFileParameterResolver implements ParameterResolver {
 
     // -----------------------------------------------------------------------------------------------------------------
-    @Target({ElementType.FIELD, ElementType.PARAMETER})
+
+    /**
+     * A marker annotation for temporary file parameters.
+     */
+    @Target({ElementType.PARAMETER})
     @Retention(RetentionPolicy.RUNTIME)
     @Documented
     public @interface TempFile {
@@ -53,30 +64,26 @@ public class TempFileParameterResolver implements ParameterResolver {
     public boolean supportsParameter(final ParameterContext parameterContext, final ExtensionContext extensionContext)
             throws ParameterResolutionException {
         final Parameter parameter = parameterContext.getParameter();
-        return parameter.isAnnotationPresent(TempFile.class)
-               && (parameter.getType() == Path.class || parameter.getType() == File.class);
+        return parameter.isAnnotationPresent(TempFile.class) && parameter.getType() == Path.class;
     }
 
     @Override
     public Object resolveParameter(final ParameterContext parameterContext, final ExtensionContext extensionContext)
             throws ParameterResolutionException {
-        final Path path;
+        final Path argument;
         try {
-            path = Files.createTempFile(null, null);
+            argument = createTempFile(null, null);
         } catch (final IOException ioe) {
             throw new RuntimeException("failed to create a temp file", ioe);
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                final boolean deleted = Files.deleteIfExists(path);
-                log.trace("deleted: {} {}", deleted, path);
+                final boolean deleted = deleteIfExists(argument);
+                log.trace("deleted: {} {}", deleted, argument);
             } catch (final IOException ioe) {
-                throw new RuntimeException("failed to delete file; " + path, ioe);
+                throw new RuntimeException("failed to delete file; " + argument, ioe);
             }
         }));
-        if (parameterContext.getParameter().getType() == File.class) {
-            return path.toFile();
-        }
-        return path;
+        return argument;
     }
 }

@@ -58,7 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
- * A class for testing {@link JinahyaResponseSpecUtils}.
+ * A class for unit-testing {@link JinahyaResponseSpecUtils}.
  *
  * @author Jin Kwon &lt;onacit_at_gmail.com&gt;
  */
@@ -68,7 +68,7 @@ class JinahyaResponseSpecUtilsTest {
 
     // -----------------------------------------------------------------------------------------------------------------
     private static Stream<Arguments> sourceResponseSpecWithExpected() {
-        final int expected = current().nextInt(8192);
+        final int expected = current().nextInt(1, 8192);
         final Flux<DataBuffer> source = JinahyaDataBufferUtilsTest.dataBuffers(expected);
         final WebClient.ResponseSpec responseSpec = mock(WebClient.ResponseSpec.class);
         Mockito.when(responseSpec.bodyToFlux(DataBuffer.class)).thenReturn(source);

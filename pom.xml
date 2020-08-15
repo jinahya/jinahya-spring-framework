@@ -6,7 +6,7 @@
   <parent>
     <groupId>com.github.jinahya</groupId>
     <artifactId>jinahya-parent</artifactId>
-    <version>0.8.4</version>
+    <version>0.8.5</version>
   </parent>
 
   <artifactId>jinahya-spring-framework</artifactId>
@@ -47,15 +47,21 @@
     <maven.compiler.testTarget>${maven.compiler.testSource}</maven.compiler.testTarget>
     <maven.javadoc.failOnError>false</maven.javadoc.failOnError> <!-- no public or protected classes found to document -->
     <version.maven-failsafe>${version.maven-surefire}</version.maven-failsafe>
-    <version.maven-surefire>3.0.0-M3</version.maven-surefire>
+    <version.maven-surefire>3.0.0-M4</version.maven-surefire>
     <version.org.jboss.weld>2.0.1.Final</version.org.jboss.weld>
-    <version.org.junit.jupiter>5.5.2</version.org.junit.jupiter>
-    <version.org.mockito>3.1.0</version.org.mockito>
-    <version.org.springframework>5.2.0.RELEASE</version.org.springframework>
+    <version.org.junit.jupiter>5.7.0-M1</version.org.junit.jupiter>
+    <version.org.mockito>3.4.6</version.org.mockito>
+    <version.org.projectlombok>1.18.12</version.org.projectlombok>
+    <version.org.springframework>5.2.8.RELEASE</version.org.springframework>
   </properties>
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${version.org.projectlombok}</version>
+      </dependency>
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-framework-bom</artifactId>
@@ -81,7 +87,7 @@
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
-      <version>3.13.2</version>
+      <version>3.16.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -139,7 +145,6 @@
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.18.10</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -189,7 +194,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
-          <version>3.7.1</version>
+          <version>3.9.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>${version.maven-failsafe}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -209,7 +219,7 @@
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.8.4</version>
+          <version>0.8.5</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -222,12 +232,19 @@
           <compilerArgs>
             <arg>-Xlint</arg>
           </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${version.org.projectlombok}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.0.0-M2</version>
+        <version>3.0.0-M3</version>
         <executions>
           <execution>
             <id>enforce-versions</id>
@@ -252,11 +269,14 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${version.maven-surefire}</version>
+        <configuration>
+          <argLine>-Xmx1024m</argLine>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>animal-sniffer-maven-plugin</artifactId>
-        <version>1.17</version>
+        <version>1.18</version>
         <executions>
           <execution>
             <id>check-signature-java18:1.0</id>
@@ -308,7 +328,7 @@
       <plugin>
         <groupId>com.github.spotbugs</groupId>
         <artifactId>spotbugs-maven-plugin</artifactId>
-        <version>3.1.12</version>
+        <version>3.1.12.2</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -318,7 +338,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>3.1.1</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -373,15 +393,23 @@
 
   <profiles>
     <profile>
-      <id>umlgraph</id>
-      <properties>
-        <additionalparam>
-          -all -hide java.*
-          -collapsible -horizontal
-          -inferdep -inferdepinpackage -inferrel
-          -outputencoding UTF-8
-        </additionalparam>
-      </properties>
+      <id>failsafe</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 </project>

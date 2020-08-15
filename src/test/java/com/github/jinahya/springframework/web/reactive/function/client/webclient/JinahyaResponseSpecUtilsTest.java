@@ -32,6 +32,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -46,11 +47,9 @@ import static com.github.jinahya.springframework.web.reactive.function.client.we
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.pipeBodyAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.reduceBodyAsStreamAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.reduceBodyAsStreamAndApply;
-import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToFileAndApply;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndAccept;
 import static com.github.jinahya.springframework.web.reactive.function.client.webclient.JinahyaResponseSpecUtils.writeBodyToTempFileAndApply;
-import static java.util.concurrent.Executors.newSingleThreadExecutor;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -78,8 +77,8 @@ class JinahyaResponseSpecUtilsTest {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction,
-     * Supplier)} method.
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[],
+     * BiFunction, Supplier)} method.
      *
      * @param response a response spec whose body is written.
      * @param expected an expected total size of bytes.
@@ -89,14 +88,14 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToFileAndApply(final WebClient.ResponseSpec response, final long expected,
                                      @TempFileParameterResolver.TempFile final Path file) {
-        final Long actual = writeBodyToFileAndApply(response, file, FS2, () -> null).block();
+        final Long actual = writeBodyToFileAndApply(response, file, null, FS2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
 
     /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, BiConsumer,
-     * Supplier)} method.
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, OpenOption[],
+     * BiConsumer, Supplier)} method.
      *
      * @param response a response spec whose body is written.
      * @param expected an expected total size of bytes.
@@ -106,7 +105,13 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToFileAndAccept(final WebClient.ResponseSpec response, final long expected,
                                       @TempFileParameterResolver.TempFile final Path file) {
-        writeBodyToFileAndAccept(response, file, (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null).block();
+        JinahyaResponseSpecUtils
+                .writeBodyToFileAndAccept(
+                        response,
+                        file,
+                        null,
+                        (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null)
+                .block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -137,39 +142,6 @@ class JinahyaResponseSpecUtilsTest {
     @ParameterizedTest
     void testWriteBodyToTempFileAndAccept(final WebClient.ResponseSpec response, final long expected) {
         writeBodyToTempFileAndAccept(response, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------'
-    @MethodSource({"sourceResponseSpecWithExpected"})
-    @ParameterizedTest
-    void testPipeBodyAndApplyWithExecutor(final WebClient.ResponseSpec response, final long expected) {
-        final Long actual = pipeBodyAndApply(response, newSingleThreadExecutor(), CR, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    @MethodSource({"sourceResponseSpecWithExpected"})
-    @ParameterizedTest
-    void testPipeBodyAndApplyWithExecutorEscape(final WebClient.ResponseSpec response, final long expected) {
-        final Long actual = pipeBodyAndApply(response, newSingleThreadExecutor(), CR, () -> null).block();
-        assertNotNull(actual);
-        assertTrue(actual <= expected);
-    }
-
-    @MethodSource({"sourceResponseSpecWithExpected"})
-    @ParameterizedTest
-    void testPipeBodyAndAcceptWithExecutor(final WebClient.ResponseSpec response, final long expected) {
-        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertEquals(expected, CR.apply(c, u)),
-                          () -> null)
-                .block();
-    }
-
-    @MethodSource({"sourceResponseSpecWithExpected"})
-    @ParameterizedTest
-    void testPipeBodyAndAcceptWithExecutorEscape(final WebClient.ResponseSpec response, final long expected) {
-        pipeBodyAndAccept(response, newSingleThreadExecutor(), (c, u) -> assertTrue(CE2.apply(c, u) <= expected),
-                          () -> null)
-                .block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------'

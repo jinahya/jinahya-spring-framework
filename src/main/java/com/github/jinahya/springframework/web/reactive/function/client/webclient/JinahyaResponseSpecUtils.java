@@ -22,6 +22,7 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -30,8 +31,9 @@ import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.util.concurrent.Executor;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -41,14 +43,9 @@ import java.util.function.Supplier;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.function.Function.identity;
 import static org.springframework.core.io.buffer.DataBufferUtils.releaseConsumer;
-import static org.springframework.core.io.buffer.DataBufferUtils.write;
 import static reactor.core.publisher.Flux.from;
-import static reactor.core.publisher.Mono.fromFuture;
-import static reactor.core.publisher.Mono.just;
-import static reactor.core.publisher.Mono.using;
 
 /**
  * Utilities for {@link WebClient.ResponseSpec}.
@@ -66,6 +63,7 @@ public final class JinahyaResponseSpecUtils {
      *
      * @param response the response spec whose body is written to the file.
      * @param file     the file to which body of the spec is written.
+     * @param options  an array of open options.
      * @param function the function to be applied with the file.
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
@@ -73,9 +71,10 @@ public final class JinahyaResponseSpecUtils {
      * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
+                                                      final OpenOption[] options,
                                                       final Function<? super Path, ? extends R> function) {
         requireNonNull(response, "response is null");
-        return writeAndApply(response.bodyToFlux(DataBuffer.class), file, function);
+        return writeAndApply(response.bodyToFlux(DataBuffer.class), file, options, function);
     }
 
     /**
@@ -86,22 +85,19 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>      result type parameter
      * @param response the response spec whose body is written to the file.
      * @param file     the file to which the body of the spec is written.
+     * @param options  an array of open options.
      * @param function the function to be applied with the file and the second argument.
      * @param supplier the supplier for the second argument of the function.
      * @return the value the function results.
-     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[], Function)
      * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
      */
     public static <U, R> Mono<R> writeBodyToFileAndApply(
-            final WebClient.ResponseSpec response, final Path file,
+            final WebClient.ResponseSpec response, final Path file, final OpenOption[] options,
             final BiFunction<? super Path, ? super U, ? extends R> function, final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return writeBodyToFileAndApply(response, file, f -> function.apply(f, supplier.get()));
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
+        return writeBodyToFileAndApply(response, file, options, f -> function.apply(f, supplier.get()));
     }
 
     /**
@@ -109,17 +105,17 @@ public final class JinahyaResponseSpecUtils {
      *
      * @param response the response spec whose body is written to the file.
      * @param file     the file to which the body is written.
+     * @param options  an array of open options.
      * @param consumer the consumer to be accepted with the file.
      * @return a mono of {@link Void}.
-     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, BiConsumer, Supplier)
-     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, Function)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, OpenOption[], BiConsumer, Supplier)
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[], Function)
      */
     public static Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
+                                                      final OpenOption[] options,
                                                       final Consumer<? super Path> consumer) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        return writeBodyToFileAndApply(response, file, identity())
+        requireNonNull(consumer, "consumer is null");
+        return writeBodyToFileAndApply(response, file, options, identity())
                 .map(p -> {
                     consumer.accept(p);
                     return p;
@@ -134,22 +130,20 @@ public final class JinahyaResponseSpecUtils {
      * @param <U>      second argument type parameter
      * @param response the response spec whose body is written to the file.
      * @param file     the file to which the body is written.
+     * @param options  an array of open options.
      * @param consumer the consumer to be accepted with the file along with the second argument.
      * @param supplier the supplier for the second argument.
      * @return a mono of {@link Void}.
-     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
-     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction, Supplier)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, OpenOption[], Consumer)
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[], BiFunction, Supplier)
      */
     public static <U> Mono<Void> writeBodyToFileAndAccept(final WebClient.ResponseSpec response, final Path file,
+                                                          final OpenOption[] options,
                                                           final BiConsumer<? super Path, ? super U> consumer,
                                                           final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return writeBodyToFileAndAccept(response, file, f -> consumer.accept(f, supplier.get()));
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
+        return writeBodyToFileAndAccept(response, file, options, f -> consumer.accept(f, supplier.get()));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -167,9 +161,7 @@ public final class JinahyaResponseSpecUtils {
      */
     public static <R> Mono<R> writeBodyToTempFileAndApply(
             final WebClient.ResponseSpec response, final Function<? super ReadableByteChannel, ? extends R> function) {
-        if (response == null) {
-            throw new NullPointerException("response is null");
-        }
+        requireNonNull(response, "response is null");
         return writeToTempFileAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
@@ -252,127 +244,6 @@ public final class JinahyaResponseSpecUtils {
      * Pipe#source() source} of the pipe.
      *
      * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
-     * @param executor an executor for writing the body to the {@link Pipe#sink() sink} of the pipe.
-     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
-     * @param <R>      result type parameter
-     * @return a mono of result of the function.
-     * @see WebClient.ResponseSpec#bodyToFlux(Class)
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
-     */
-    public static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response, final Executor executor,
-                                               final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(response, "response is null");
-        return using(
-                Pipe::open,
-                p -> {
-                    executor.execute(
-                            () -> write(response.bodyToFlux(DataBuffer.class), p.sink())
-                                    .doOnError(t -> log.error("failed to write body to pipe.sink", t))
-                                    .doFinally(st -> {
-                                        try {
-                                            p.sink().close();
-                                        } catch (final IOException ioe) {
-                                            log.error("failed to close pipe.sink", ioe);
-                                        }
-                                    })
-                                    .subscribe(releaseConsumer()));
-                    return just(function.apply(p.source()));
-                },
-                p -> {
-                    try {
-                        p.source().close();
-                    } catch (final IOException ioe) {
-                        log.error("failed to close the pipe.source", ioe);
-                        throw new RuntimeException(ioe);
-                    }
-                }
-        );
-    }
-
-    /**
-     * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#source() source} of the pipe and a second argument from specified supplier.
-     *
-     * @param response the response spec whose body is written to {@link Pipe#sink() sink} of the pipe.
-     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
-     * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
-     * @param supplier the supplier for the second argument of the function.
-     * @param <U>      second argument type parameter
-     * @param <R>      result type parameter
-     * @return a mono of result of the function.
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
-     */
-    public static <U, R> Mono<R> pipeBodyAndApply(
-            final WebClient.ResponseSpec response, final Executor executor,
-            final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
-            final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return pipeBodyAndApply(response, executor, c -> function.apply(c, supplier.get()));
-    }
-
-    /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe to specified consumer.
-     *
-     * @param response the response spec whose body is written to {@link Pipe#sink() sink} of the pipe.
-     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
-     * @return a mono of {@link Void}.
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, BiConsumer, Supplier)
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, Function)
-     */
-    public static Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
-                                               final Consumer<? super ReadableByteChannel> consumer) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        return pipeBodyAndApply(response,
-                                executor,
-                                c -> {
-                                    consumer.accept(c);
-                                    return c;
-                                })
-                .then();
-    }
-
-    /**
-     * Pipes given response spec's body and accepts the {@link Pipe#source() source} of the pipe, along with an argument
-     * from specified supplier, to specified consumer.
-     *
-     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
-     * @param executor an executor for writing the body to {@link Pipe#sink() sink} of the pipe.
-     * @param consumer the consumer to be accepted with the {@link Pipe#source() source} of the pipe.
-     * @param supplier the supplier for the second argument.
-     * @param <U>      second argument type parameter
-     * @return a mono of {@link Void}.
-     * @see #pipeBodyAndAccept(WebClient.ResponseSpec, Executor, Consumer)
-     * @see #pipeBodyAndApply(WebClient.ResponseSpec, Executor, BiFunction, Supplier)
-     */
-    public static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response, final Executor executor,
-                                                   final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
-                                                   final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
-        return pipeBodyAndAccept(response, executor, c -> consumer.accept(c, supplier.get()));
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Pipes given response spec's body and returns the result of specified function applied with the {@link
-     * Pipe#source() source} of the pipe.
-     *
-     * @param response the response spec whose body is written to the {@link Pipe#sink() sink} of the pipe.
      * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
@@ -384,14 +255,17 @@ public final class JinahyaResponseSpecUtils {
         if (response == null) {
             throw new NullPointerException("response is null");
         }
-        return using(
+        return Mono.using(
                 Pipe::open,
-                p -> fromFuture(supplyAsync(() -> function.apply(p.source())))
-                        .doFirst(() -> write(response.bodyToFlux(DataBuffer.class), p.sink())
+                p -> Mono
+                        .fromFuture(CompletableFuture.supplyAsync(() -> function.apply(p.source())))
+                        .doFirst(() -> DataBufferUtils
+                                .write(response.bodyToFlux(DataBuffer.class), p.sink())
                                 .doOnError(t -> log.error("failed to write body to pipe.sink", t))
                                 .doFinally(s -> {
                                     try {
                                         p.sink().close();
+                                        log.debug("pipe.sink closed");
                                     } catch (final IOException ioe) {
                                         log.error("failed to close pipe.sink", ioe);
                                     }
@@ -400,6 +274,7 @@ public final class JinahyaResponseSpecUtils {
                 p -> {
                     try {
                         p.source().close();
+                        log.debug("pipe.source closed");
                     } catch (final IOException ioe) {
                         log.error("failed to close the pipe.source", ioe);
                         throw new RuntimeException(ioe);
@@ -425,12 +300,8 @@ public final class JinahyaResponseSpecUtils {
             final WebClient.ResponseSpec response,
             final BiFunction<? super ReadableByteChannel, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndApply(response, c -> function.apply(c, supplier.get()));
     }
 
@@ -471,38 +342,30 @@ public final class JinahyaResponseSpecUtils {
     public static <U> Mono<Void> pipeBodyAndAccept(final WebClient.ResponseSpec response,
                                                    final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
                                                    final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return pipeBodyAndAccept(response, c -> consumer.accept(c, supplier.get()));
     }
 
     // ------------------------------------------------------------------------------------------- reduceBodyAsStreamAnd
 
     /**
-     * Reduces given response spec't body into a single input stream and returns the result of specified function
+     * Reduces given response spec's body into a single input stream and returns the result of specified function
      * applied with it.
+     * <p>
+     * Note that this method is not memory-efficient when the response's body is not small enough to fit in memory.
      *
      * @param response the response spec whose body is reduced.
      * @param function the function to be applied with the reduced body.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
-     * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, BiConsumer, Supplier)
+     * @see #reduceBodyAsStreamAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, Consumer)
-     * @deprecated Not efficient at all.
      */
-    @Deprecated
     public static <R> Mono<R> reduceBodyAsStreamAndApply(final WebClient.ResponseSpec response,
                                                          final Function<? super InputStream, ? extends R> function) {
-        if (response == null) {
-            throw new NullPointerException("response is null");
-        }
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
+        requireNonNull(response, "response is null");
+        requireNonNull(function, "function is null");
         return from(response.bodyToFlux(DataBuffer.class))
                 .map(b -> b.asInputStream(true))
                 .reduce(SequenceInputStream::new)
@@ -515,26 +378,18 @@ public final class JinahyaResponseSpecUtils {
                 });
     }
 
-    @Deprecated
     public static <U, R> Mono<R> reduceBodyAsStreamAndApply(
             final WebClient.ResponseSpec response,
             final BiFunction<? super InputStream, ? super U, ? extends R> function,
             final Supplier<? extends U> supplier) {
-        if (function == null) {
-            throw new NullPointerException("function is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
+        requireNonNull(function, "function is null");
+        requireNonNull(supplier, "supplier is null");
         return reduceBodyAsStreamAndApply(response, s -> function.apply(s, supplier.get()));
     }
 
-    @Deprecated
     public static Mono<Void> reduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response,
                                                          final Consumer<? super InputStream> consumer) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
+        requireNonNull(consumer, "consumer is null");
         return reduceBodyAsStreamAndApply(response,
                                           s -> {
                                               consumer.accept(s);
@@ -543,16 +398,11 @@ public final class JinahyaResponseSpecUtils {
                 .then();
     }
 
-    @Deprecated
     public static <U> Mono<Void> reduceBodyAsStreamAndAccept(final WebClient.ResponseSpec response,
                                                              final BiConsumer<? super InputStream, ? super U> consumer,
                                                              final Supplier<? extends U> supplier) {
-        if (consumer == null) {
-            throw new NullPointerException("consumer is null");
-        }
-        if (supplier == null) {
-            throw new NullPointerException("supplier is null");
-        }
+        requireNonNull(consumer, "consumer is null");
+        requireNonNull(supplier, "supplier is null");
         return reduceBodyAsStreamAndAccept(response, s -> consumer.accept(s, supplier.get()));
     }
 

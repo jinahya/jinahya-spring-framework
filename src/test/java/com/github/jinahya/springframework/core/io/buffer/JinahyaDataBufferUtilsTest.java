@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -50,8 +51,6 @@ import java.util.stream.Stream;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndAccept;
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndAccept;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.nio.file.Files.size;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -187,17 +186,18 @@ public class JinahyaDataBufferUtilsTest {
     // --------------------------------------------------------------------------------------- writeAndApplyWithFunction
 
     /**
-     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method throws a {@code
-     * NullPointerException} when {@code function} is {@code null}.
+     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], Function)} method throws a
+     * {@code NullPointerException} when {@code function} is {@code null}.
      */
     @Test
     @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
-        assertThrows(NullPointerException.class, () -> writeAndApply(mock(Publisher.class), mock(Path.class), null));
+        assertThrows(NullPointerException.class,
+                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, null));
     }
 
     /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, Function)} method.
+     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], Function)} method.
      *
      * @param source      a stream of data buffers.
      * @param expected    an expected total size of data buffers.
@@ -207,7 +207,7 @@ public class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testWriteAndApplyWithFunction(final Flux<DataBuffer> source, final int expected,
                                        @TempFileParameterResolver.TempFile final Path destination) {
-        final Long actual = writeAndApply(source, destination, FS1).block();
+        final Long actual = writeAndApply(source, destination, null, FS1).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -217,18 +217,18 @@ public class JinahyaDataBufferUtilsTest {
     @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
         assertThrows(NullPointerException.class,
-                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, () -> null));
+                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, null, () -> null));
     }
 
     @Test
     @SuppressWarnings({"unchecked"})
     void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenSupplierIsNull() {
         assertThrows(NullPointerException.class,
-                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), (f, u) -> f, null));
+                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, (f, u) -> f, null));
     }
 
     /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, BiFunction, Supplier)} method.
+     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], BiFunction, Supplier)} method.
      *
      * @param source      a stream of data buffers.
      * @param expected    an expected total size of data buffers.
@@ -238,7 +238,7 @@ public class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testWriteAndApplyWithBiFunction(final Flux<DataBuffer> source, final int expected,
                                          @TempFileParameterResolver.TempFile final Path destination) {
-        final Long actual = writeAndApply(source, destination, FS2, () -> null).block();
+        final Long actual = writeAndApply(source, destination, null, FS2, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -247,20 +247,23 @@ public class JinahyaDataBufferUtilsTest {
     @Test
     @SuppressWarnings({"unchecked"})
     void assertWriteAndAcceptWithConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
-        assertThrows(NullPointerException.class, () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null));
+        assertThrows(NullPointerException.class,
+                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, null));
     }
 
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testWriteAndAcceptWithConsumer(final Flux<DataBuffer> source, final int expected,
                                         @TempFileParameterResolver.TempFile final Path destination) {
-        writeAndAccept(source,
-                       destination,
-                       f -> {
-                           final Long actual = FS1.apply(f);
-                           assertNotNull(actual);
-                           assertEquals(expected, actual.longValue());
-                       })
+        JinahyaDataBufferUtils
+                .writeAndAccept(source,
+                                destination,
+                                null,
+                                f -> {
+                                    final Long actual = FS1.apply(f);
+                                    assertNotNull(actual);
+                                    assertEquals(expected, actual.longValue());
+                                })
                 .block();
     }
 
@@ -269,18 +272,18 @@ public class JinahyaDataBufferUtilsTest {
     @SuppressWarnings({"unchecked"})
     void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
         assertThrows(NullPointerException.class,
-                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, () -> null));
+                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, null, () -> null));
     }
 
     @Test
     @SuppressWarnings({"unchecked"})
     void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenSupplierIsNull() {
         assertThrows(NullPointerException.class,
-                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), mock(BiConsumer.class), null));
+                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, mock(BiConsumer.class), null));
     }
 
     /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, BiConsumer, Supplier)} method.
+     * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, OpenOption[], BiConsumer, Supplier)} method.
      *
      * @param source      a stream of data buffers.
      * @param expected    an expected total size of data buffers.
@@ -290,7 +293,13 @@ public class JinahyaDataBufferUtilsTest {
     @ParameterizedTest
     void testWriteAndAcceptWithBiConsumer(final Flux<DataBuffer> source, final int expected,
                                           @TempFileParameterResolver.TempFile final Path destination) {
-        writeAndAccept(source, destination, (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null).block();
+        JinahyaDataBufferUtils
+                .writeAndAccept(
+                        source,
+                        destination,
+                        null,
+                        (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null)
+                .block();
     }
 
     // ------------------------------------------------------------------------------------ writeToTempAndWithBiConsumer
@@ -304,7 +313,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testWriteToTempFileAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = writeToTempFileAndApply(source, CR, () -> null).block();
+        final Long actual = JinahyaDataBufferUtils.writeToTempFileAndApply(source, CR, () -> null).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }
@@ -318,7 +327,12 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithExpected"})
     @ParameterizedTest
     void testWriteToTempFileAndAccept(final Flux<DataBuffer> source, final int expected) {
-        writeToTempFileAndAccept(source, (c, u) -> assertEquals(expected, CR.apply(c, u)), () -> null).block();
+        JinahyaDataBufferUtils
+                .writeToTempFileAndAccept(
+                        source,
+                        (c, u) -> assertEquals(expected, CR.apply(c, u)),
+                        () -> null)
+                .block();
     }
 
     // -----------------------------------------------------------------------------------------------------------------

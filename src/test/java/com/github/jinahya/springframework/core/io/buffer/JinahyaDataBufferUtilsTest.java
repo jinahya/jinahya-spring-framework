@@ -36,22 +36,14 @@ import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.publisher.Flux;
 
-import javax.inject.Inject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.file.OpenOption;
-import java.nio.file.Path;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndAccept;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
-import static java.nio.file.Files.size;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -79,22 +71,25 @@ public class JinahyaDataBufferUtilsTest {
         return DATA_BUFFER_FACTORY.allocateBuffer(capacity).writePosition(capacity);
     }
 
-    public static Flux<DataBuffer> dataBuffers(final int expected) {
-        if (expected <= 0) {
-            throw new IllegalArgumentException("expected(" + expected + ") <= 0");
+    public static Flux<DataBuffer> dataBuffers(final int totalCapacity) {
+        if (totalCapacity <= 0) {
+            throw new IllegalArgumentException("expected(" + totalCapacity + ") <= 0");
         }
-        return Flux.generate(() -> expected, (e, s) -> {
-            if (e == 0) {
-                s.complete();
-            } else {
-                final int capacity = current().nextInt(e + 1);
-                e -= capacity;
-                assert e >= 0;
-                final DataBuffer dataBuffer = dataBuffer(capacity);
-                s.next(dataBuffer);
-            }
-            return e;
-        });
+        return Flux.generate(
+                () -> totalCapacity,
+                (remaining, s) -> {
+                    if (remaining == 0) {
+                        s.complete();
+                    } else {
+                        final int capacity = current().nextInt(remaining + 1);
+                        remaining -= capacity;
+                        assert remaining >= 0;
+                        final DataBuffer dataBuffer = dataBuffer(capacity);
+                        s.next(dataBuffer);
+                    }
+                    return remaining;
+                }
+        );
     }
 
     /**
@@ -102,32 +97,14 @@ public class JinahyaDataBufferUtilsTest {
      *
      * @return a stream of arguments.
      */
-    private static Stream<Arguments> sourceDataBuffersWithExpected() {
-        final int expected = current().nextInt(8192);
-        final Flux<DataBuffer> buffers = dataBuffers(expected);
-        return Stream.of(Arguments.of(buffers, expected));
+    private static Stream<Arguments> sourceDataBuffersWithTotalCapacity() {
+        final int totalCapacity = current().nextInt(8192);
+        final Flux<DataBuffer> buffers = dataBuffers(totalCapacity);
+        return Stream.of(Arguments.of(buffers, totalCapacity));
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * A function returns the {@link java.nio.file.Files#size(Path) size} of given file.
-     */
-    public static final Function<Path, Long> FS1 = f -> {
-        try {
-            return size(f);
-        } catch (final IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-    };
-
-    /**
-     * A binary function returns the {@link java.nio.file.Files#size(Path) size} of given file.
-     */
-    public static final BiFunction<Path, Object, Long> FS2 = (f, u) -> FS1.apply(f);
-
-    // -----------------------------------------------------------------------------------------------------------------
-    public static final Function<InputStream, Long> SR1 = s -> {
+    public static final Function<InputStream, Long> GET_STREAM_SIZE = s -> {
         try {
             long size = 0L;
             final byte[] buffer = new byte[128];
@@ -140,203 +117,55 @@ public class JinahyaDataBufferUtilsTest {
         }
     };
 
-    public static final BiFunction<InputStream, Object, Long> SR2 = (s, u) -> SR1.apply(s);
-
     // -----------------------------------------------------------------------------------------------------------------
-    public static final Function<ReadableByteChannel, Long> CR1 = c -> {
-        long s = 0L;
-        final ByteBuffer b = ByteBuffer.allocate(128);
+    public static final Function<ReadableByteChannel, Long> GET_CHANNEL_SIZE = c -> {
+        log.debug("channel: {}", c);
+        long size = 0L;
         try {
-            for (int r; (r = c.read(b)) != -1; s += r) {
-                b.clear();
+            final ByteBuffer buffer = ByteBuffer.allocate(128);
+            for (int r; (r = c.read(buffer)) != -1; buffer.clear()) {
+                size += r;
             }
         } catch (final IOException ioe) {
             throw new RuntimeException(ioe);
         }
-        return s;
+        return size;
     };
-
-    /**
-     * A function for getting size of the channel.
-     */
-    public static final BiFunction<ReadableByteChannel, Object, Long> CR = (c, u) -> CR1.apply(c);
-
-    // -----------------------------------------------------------------------------------------------------------------
-    public static final Function<ReadableByteChannel, Long> CE1 = c -> {
-        long s = 0L;
-        final ByteBuffer b = ByteBuffer.allocate(128);
-        try {
-            for (int r; (r = c.read(b)) != -1; s += r) {
-                if (current().nextBoolean()) {
-                    break;
-                }
-                b.clear();
-            }
-        } catch (final IOException ioe) {
-            throw new RuntimeException(ioe);
-        }
-        return s;
-    };
-
-    /**
-     * A function for getting size of the channel. Possibly escape.
-     */
-    public static final BiFunction<ReadableByteChannel, Object, Long> CE2 = (c, u) -> CE1.apply(c);
 
     // --------------------------------------------------------------------------------------- writeAndApplyWithFunction
 
     /**
-     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], Function)} method throws a
-     * {@code NullPointerException} when {@code function} is {@code null}.
+     * Asserts {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)} method throws a {@code
+     * NullPointerException} when {@code source} is {@code null}.
      */
     @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndApplyWithFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, null));
+    void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenSourceIsNull() {
+        final Function<ReadableByteChannel, Void> function = c -> null;
+        assertThrows(NullPointerException.class, () -> writeToTempFileAndApply(null, function));
     }
 
     /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], Function)} method.
-     *
-     * @param source      a stream of data buffers.
-     * @param expected    an expected total size of data buffers.
-     * @param destination a temp file to which data buffers are written.
+     * Asserts {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)} method throws a {@code
+     * NullPointerException} when {@code function} is {@code null}.
      */
-    @MethodSource({"sourceDataBuffersWithExpected"})
+    @Test
+    @SuppressWarnings({"unchecked"})
+    void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenFunctionIsNull() {
+        final Publisher<DataBuffer> source = mock(Publisher.class);
+        assertThrows(NullPointerException.class, () -> writeToTempFileAndApply(source, null));
+    }
+
+    /**
+     * Tests {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)}  method.
+     *
+     * @param dataBuffers   a flux of data buffers.
+     * @param totalCapacity the total size of data in buffers.
+     */
+    @MethodSource({"sourceDataBuffersWithTotalCapacity"})
     @ParameterizedTest
-    void testWriteAndApplyWithFunction(final Flux<DataBuffer> source, final int expected,
-                                       @TempFileParameterResolver.TempFile final Path destination) {
-        final Long actual = writeAndApply(source, destination, null, FS1).block();
+    void testWriteAndApply(final Flux<DataBuffer> dataBuffers, final int totalCapacity) {
+        final Long actual = writeToTempFileAndApply(dataBuffers, GET_CHANNEL_SIZE).block();
         assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
+        assertEquals(totalCapacity, actual.longValue());
     }
-
-    // ------------------------------------------------------------------------------------- writeAndApplyWithBiFunction
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenFunctionIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, null, () -> null));
-    }
-
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndApplyWithBiFunctionThrowsNullPointerExceptionWhenSupplierIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndApply(mock(Publisher.class), mock(Path.class), null, (f, u) -> f, null));
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Path, OpenOption[], BiFunction, Supplier)} method.
-     *
-     * @param source      a stream of data buffers.
-     * @param expected    an expected total size of data buffers.
-     * @param destination a temp file to which data buffers are written.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testWriteAndApplyWithBiFunction(final Flux<DataBuffer> source, final int expected,
-                                         @TempFileParameterResolver.TempFile final Path destination) {
-        final Long actual = writeAndApply(source, destination, null, FS2, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    // -------------------------------------------------------------------------------------- writeAndAcceptWithConsumer
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndAcceptWithConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, null));
-    }
-
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testWriteAndAcceptWithConsumer(final Flux<DataBuffer> source, final int expected,
-                                        @TempFileParameterResolver.TempFile final Path destination) {
-        JinahyaDataBufferUtils
-                .writeAndAccept(source,
-                                destination,
-                                null,
-                                f -> {
-                                    final Long actual = FS1.apply(f);
-                                    assertNotNull(actual);
-                                    assertEquals(expected, actual.longValue());
-                                })
-                .block();
-    }
-
-    // ------------------------------------------------------------------------------------ writeAndAcceptWithBiConsumer
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenConsumerIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, null, () -> null));
-    }
-
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteAndAcceptWithBiConsumerThrowsNullPointerExceptionWhenSupplierIsNull() {
-        assertThrows(NullPointerException.class,
-                     () -> writeAndAccept(mock(Publisher.class), mock(Path.class), null, mock(BiConsumer.class), null));
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndAccept(Publisher, Path, OpenOption[], BiConsumer, Supplier)} method.
-     *
-     * @param source      a stream of data buffers.
-     * @param expected    an expected total size of data buffers.
-     * @param destination a temp file to which data buffers are written.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testWriteAndAcceptWithBiConsumer(final Flux<DataBuffer> source, final int expected,
-                                          @TempFileParameterResolver.TempFile final Path destination) {
-        JinahyaDataBufferUtils
-                .writeAndAccept(
-                        source,
-                        destination,
-                        null,
-                        (f, u) -> assertEquals(expected, FS2.apply(f, u)), () -> null)
-                .block();
-    }
-
-    // ------------------------------------------------------------------------------------ writeToTempAndWithBiConsumer
-
-    /**
-     * Test {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, BiFunction, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected total size of data buffers.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testWriteToTempFileAndApply(final Flux<DataBuffer> source, final int expected) {
-        final Long actual = JinahyaDataBufferUtils.writeToTempFileAndApply(source, CR, () -> null).block();
-        assertNotNull(actual);
-        assertEquals(expected, actual.longValue());
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#writeToTempFileAndAccept(Publisher, BiConsumer, Supplier)} method.
-     *
-     * @param source   a stream of data buffers.
-     * @param expected an expected total size of data buffers.
-     */
-    @MethodSource({"sourceDataBuffersWithExpected"})
-    @ParameterizedTest
-    void testWriteToTempFileAndAccept(final Flux<DataBuffer> source, final int expected) {
-        JinahyaDataBufferUtils
-                .writeToTempFileAndAccept(
-                        source,
-                        (c, u) -> assertEquals(expected, CR.apply(c, u)),
-                        () -> null)
-                .block();
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
-    @TempFileProducer.TempFile
-    @Inject
-    private Path tempFile;
 }

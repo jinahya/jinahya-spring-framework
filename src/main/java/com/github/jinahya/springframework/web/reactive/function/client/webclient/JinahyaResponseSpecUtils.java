@@ -62,13 +62,13 @@ public final class JinahyaResponseSpecUtils {
      * file.
      *
      * @param response the response spec whose body is written to the file.
-     * @param file     the file to which body of the spec is written.
-     * @param options  an array of open options.
+     * @param file     the file to which body of the response spec is written.
+     * @param options  an array of open options for {@code file}.
      * @param function the function to be applied with the file.
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
-     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, BiFunction, Supplier)
-     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
+     * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[], BiFunction, Supplier)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, OpenOption[], Consumer)
      */
     public static <R> Mono<R> writeBodyToFileAndApply(final WebClient.ResponseSpec response, final Path file,
                                                       final OpenOption[] options,
@@ -90,7 +90,7 @@ public final class JinahyaResponseSpecUtils {
      * @param supplier the supplier for the second argument of the function.
      * @return the value the function results.
      * @see #writeBodyToFileAndApply(WebClient.ResponseSpec, Path, OpenOption[], Function)
-     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, Consumer)
+     * @see #writeBodyToFileAndAccept(WebClient.ResponseSpec, Path, OpenOption[], Consumer)
      */
     public static <U, R> Mono<R> writeBodyToFileAndApply(
             final WebClient.ResponseSpec response, final Path file, final OpenOption[] options,
@@ -150,7 +150,7 @@ public final class JinahyaResponseSpecUtils {
 
     /**
      * Writes given response spec's body to a temporary file and returns the result of specified function applied with a
-     * readable byte channel for the file.
+     * channel from the temp file.
      *
      * @param response the response spec whose body is written to the temporary file
      * @param function the function to be applied with the channel.
@@ -352,13 +352,12 @@ public final class JinahyaResponseSpecUtils {
     /**
      * Reduces given response spec's body into a single input stream and returns the result of specified function
      * applied with it.
-     * <p>
-     * Note that this method is not memory-efficient when the response's body is not small enough to fit in memory.
      *
      * @param response the response spec whose body is reduced.
      * @param function the function to be applied with the reduced body.
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
+     * @implNote This method aggregates all bytes into a single stream in a non-memory-efficient manner.
      * @see #reduceBodyAsStreamAndApply(WebClient.ResponseSpec, BiFunction, Supplier)
      * @see #reduceBodyAsStreamAndAccept(WebClient.ResponseSpec, Consumer)
      */

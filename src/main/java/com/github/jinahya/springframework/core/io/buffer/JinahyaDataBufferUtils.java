@@ -171,19 +171,24 @@ public final class JinahyaDataBufferUtils {
      * @return a mono of the result of the function.
      */
     public static <R> Mono<R> writeToTempFileAndApply(
-            final Publisher<DataBuffer> source, final Function<? super ReadableByteChannel, ? extends R> function) {
+            final Publisher<DataBuffer> source,
+            final Function<? super ReadableByteChannel, ? extends R> function) {
         requireNonNull(source, "source is null");
         requireNonNull(function, "function is null");
         return Mono.using(
                 () -> Files.createTempFile(null, null),
-                t -> writeAndApply(source, t, null, f -> {
-                    try (ReadableByteChannel channel = FileChannel.open(f, READ)) {
-                        return function.apply(channel);
-                    } catch (final IOException ioe) {
-                        log.error("failed to apply channel", ioe);
-                        throw new RuntimeException(ioe);
-                    }
-                }),
+                t -> writeAndApply(
+                        source,
+                        t,
+                        null,
+                        f -> {
+                            try (ReadableByteChannel channel = FileChannel.open(f, READ)) {
+                                return function.apply(channel);
+                            } catch (final IOException ioe) {
+                                log.error("failed to apply channel", ioe);
+                                throw new RuntimeException(ioe);
+                            }
+                        }),
                 t -> {
                     try {
                         deleteIfExists(t);
@@ -249,7 +254,8 @@ public final class JinahyaDataBufferUtils {
      * @see #writeToTempFileAndAccept(Publisher, Consumer)
      */
     public static <U> Mono<Void> writeToTempFileAndAccept(
-            final Publisher<DataBuffer> source, final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
+            final Publisher<DataBuffer> source,
+            final BiConsumer<? super ReadableByteChannel, ? super U> consumer,
             final Supplier<? extends U> supplier) {
         requireNonNull(consumer, "consumer is null");
         requireNonNull(supplier, "supplier is null");

@@ -55,20 +55,6 @@ import static org.springframework.core.io.buffer.DataBufferUtils.write;
 public final class JinahyaDataBufferUtils {
 
     // -----------------------------------------------------------------------------------------------------------------
-    public static Runnable writer(final Publisher<DataBuffer> source, final Pipe.SinkChannel destination) {
-        return () -> write(source, destination)
-                .doOnError(t -> log.error("failed to write {} to {}", source, destination, t))
-                .doFinally(st -> {
-                    try {
-                        destination.close();
-                    } catch (final IOException ioe) {
-                        log.error("failed to close {}", destination, ioe);
-                    }
-                })
-                .subscribe(releaseConsumer());
-    }
-
-    // -----------------------------------------------------------------------------------------------------------------
 
     private static final OpenOption[] EMPTY_OPTIONS = new OpenOption[0];
 

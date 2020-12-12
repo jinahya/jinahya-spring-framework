@@ -25,12 +25,8 @@ import com.github.jinahya.junit.jupiter.api.extension.TempFileParameterResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.jboss.weld.junit5.auto.AddBeanClasses;
 import org.jboss.weld.junit5.auto.WeldJunit5AutoExtension;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
@@ -43,12 +39,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static java.util.concurrent.ThreadLocalRandom.current;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
 
 /**
  * A class for unit-testing {@link JinahyaDataBufferUtils} class.
@@ -58,9 +49,7 @@ import static org.mockito.Mockito.mock;
 @AddBeanClasses({TempFileProducer.class})
 @ExtendWith({TempFileParameterResolver.class, WeldJunit5AutoExtension.class})
 @Slf4j
-public class JinahyaDataBufferUtilsTest {
-
-    // -----------------------------------------------------------------------------------------------------------------
+public abstract class JinahyaDataBufferUtilsTest {
 
     private static final DataBufferFactory DATA_BUFFER_FACTORY = new DefaultDataBufferFactory();
 
@@ -131,41 +120,4 @@ public class JinahyaDataBufferUtilsTest {
         }
         return size;
     };
-
-    // --------------------------------------------------------------------------------------- writeAndApplyWithFunction
-
-    /**
-     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)} method throws a {@code
-     * NullPointerException} when {@code source} is {@code null}.
-     */
-    @Test
-    void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenSourceIsNull() {
-        final Function<ReadableByteChannel, Void> function = c -> null;
-        assertThrows(NullPointerException.class, () -> writeAndApply(null, function));
-    }
-
-    /**
-     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)} method throws a {@code
-     * NullPointerException} when {@code function} is {@code null}.
-     */
-    @Test
-    @SuppressWarnings({"unchecked"})
-    void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenFunctionIsNull() {
-        final Publisher<DataBuffer> source = mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeAndApply(source, null));
-    }
-
-    /**
-     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)}  method.
-     *
-     * @param dataBuffers   a flux of data buffers.
-     * @param totalCapacity the total size of data in buffers.
-     */
-    @MethodSource({"sourceDataBuffersWithTotalCapacity"})
-    @ParameterizedTest
-    void testWriteAndApply(final Flux<DataBuffer> dataBuffers, final int totalCapacity) {
-        final Long actual = writeAndApply(dataBuffers, GET_CHANNEL_SIZE).block();
-        assertNotNull(actual);
-        assertEquals(totalCapacity, actual.longValue());
-    }
 }

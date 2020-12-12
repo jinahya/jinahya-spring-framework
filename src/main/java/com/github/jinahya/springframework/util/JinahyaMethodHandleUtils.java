@@ -1,92 +1,56 @@
 package com.github.jinahya.springframework.util;
 
-import jdk.internal.jline.internal.Nullable;
-import org.springframework.lang.NonNull;
+import org.springframework.util.ReflectionUtils;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.Optional;
-import java.util.WeakHashMap;
-import java.util.function.UnaryOperator;
-
-import static java.util.Collections.synchronizedMap;
-import static java.util.Optional.ofNullable;
-import static org.springframework.util.Assert.notNull;
-import static org.springframework.util.ReflectionUtils.findField;
+import java.lang.reflect.Constructor;
+import java.util.function.Supplier;
 
 public abstract class JinahyaMethodHandleUtils {
 
     /**
-     * A map of classes and maps of field names and unreflected getters.
-     */
-    private static final Map<Class<?>, Map<String, MethodHandle>> UNREFLECTED_GETTERS_BY_NAMES
-            = synchronizedMap(new WeakHashMap<>());
-
-    /**
-     * A map of classes and maps of field names and unreflected setters.
-     */
-    private static final Map<Class<?>, Map<String, MethodHandle>> UNREFLECTED_SETTERS_BY_NAMES
-            = synchronizedMap(new WeakHashMap<>());
-
-    /**
-     * Returns an unreflected getter of the field, searched in specified class and its superclasses, whose name matches
-     * to specified name.
+     * Returns an {@link MethodHandles.Lookup#unreflectConstructor(Constructor) unreflected} {@link
+     * ReflectionUtils#accessibleConstructor(Class, Class[]) (accessible) constructor} of specified class for specified
+     * parameter types.
      *
-     * @param clazz    the class whose fields are searched.
-     * @param name     the name of the field.
-     * @param operator an operator for handling access control.
-     * @param lookup   a lookup whose {@link java.lang.invoke.MethodHandles.Lookup#unreflectGetter(Field)} method is
-     *                 invoked with the field.
-     * @return an optional of the unreflected getter; {@code empty} when the field is not found.
+     * @param clazz          the class whose constructor is obtained.
+     * @param parameterTypes the parameter types of the desired constructor.
+     * @return the unreflected (accessible) constructor.
+     * @throws NoSuchMethodException  if failed to find the constructor.
+     * @throws IllegalAccessException if access checking fails or if the method's variable arity modifier bit is set and
+     *                                asVarargsCollector fails
+     * @see ReflectionUtils#accessibleConstructor(Class, Class[])
+     * @see java.lang.invoke.MethodHandles.Lookup#unreflectConstructor(Constructor)
      */
-    public static Optional<MethodHandle> getUnreflectedGetter(
-            @NonNull final Class<?> clazz, @NonNull final String name,
-            @Nullable final UnaryOperator<Field> operator, @NonNull final MethodHandles.Lookup lookup) {
-        notNull(lookup, "lookup must be not null");
-        final Map<String, MethodHandle> gettersByNames
-                = UNREFLECTED_GETTERS_BY_NAMES.computeIfAbsent(clazz, c -> synchronizedMap(new WeakHashMap<>()));
-        return ofNullable(
-                gettersByNames.computeIfAbsent(
-                        name,
-                        n -> ofNullable(findField(clazz, name))
-                                .map(f -> operator != null ? operator.apply(f) : f)
-                                .map(f -> {
-                                    try {
-                                        return lookup.unreflectGetter(f);
-                                    } catch (final IllegalAccessException iae) {
-                                        throw new RuntimeException("unable to unreflect getter from " + f, iae);
-                                    }
-                                })
-                                .orElse(null)
-
-                )
-        );
+    public static MethodHandle accessibleConstructorHandle(final Class<?> clazz, final Class<?>... parameterTypes)
+            throws NoSuchMethodException, IllegalAccessException {
+        final Constructor<?> constructor = ReflectionUtils.accessibleConstructor(clazz, parameterTypes);
+        return MethodHandles.lookup().unreflectConstructor(constructor);
     }
 
-    public static Optional<MethodHandle> getUnreflectedSetter(
-            @NonNull final Class<?> clazz, @NonNull final String name,
-            @Nullable final UnaryOperator<Field> operator, @NonNull final MethodHandles.Lookup lookup) {
-        notNull(lookup, "lookup must be not null");
-        final Map<String, MethodHandle> settersByNames
-                = UNREFLECTED_SETTERS_BY_NAMES.computeIfAbsent(clazz, c -> synchronizedMap(new WeakHashMap<>()));
-        return ofNullable(
-                settersByNames.computeIfAbsent(
-                        name,
-                        n -> ofNullable(findField(clazz, name))
-                                .map(f -> operator != null ? operator.apply(f) : f)
-                                .map(f -> {
-                                    try {
-                                        return lookup.unreflectSetter(f);
-                                    } catch (final IllegalAccessException iae) {
-                                        throw new RuntimeException("unable to unreflect setter from " + f, iae);
-                                    }
-                                })
-                                .orElse(null)
+    public static <T> Supplier<T> accessibleDefaultConstructorHandleInvoker(final Class<T> clazz) {
+        return new Supplier<T>() {
+            @SuppressWarnings({"unchecked"})
+            @Override
+            public T get() {
+                MethodHandle h = handle;
+                if (h == null) {
+                    try {
+                        handle = h = accessibleConstructorHandle(clazz);
+                    } catch (final ReflectiveOperationException roe) {
+                        throw new RuntimeException("failed to get default constructor handle", roe);
+                    }
+                }
+                try {
+                    return (T) h.invoke();
+                } catch (final Throwable t) {
+                    throw new RuntimeException("failed to invoke default constructor handle", t);
+                }
+            }
 
-                )
-        );
+            private MethodHandle handle;
+        };
     }
 
     protected JinahyaMethodHandleUtils() {

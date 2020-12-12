@@ -53,14 +53,14 @@ public final class JinahyaDataBufferUtils {
 
     /**
      * Writes given stream of data buffers to a temporary file and returns the result of specified function applied with
-     * a readable byte channel for the file.
+     * a readable byte channel of the file.
      *
      * @param source   the stream of data buffers to be written to the file.
      * @param function the function to be applied with the channel.
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
      */
-    public static <R> Mono<R> writeToTempFileAndApply(
+    public static <R> Mono<R> writeAndApply(
             final Publisher<DataBuffer> source,
             final Function<? super ReadableByteChannel, ? extends R> function) {
         requireNonNull(source, "source is null");
@@ -101,11 +101,12 @@ public final class JinahyaDataBufferUtils {
                             .fromFuture(future)
                             .doFirst(() -> DataBufferUtils
                                     .write(source, p.sink())
-                                    .doOnError(t -> log.error("failed to write body to pipe.sink", t))
+                                    .doOnError(t -> {
+                                        log.error("failed to write body to pipe.sink", t);
+                                    })
                                     .doFinally(s -> {
                                         try {
                                             p.sink().close();
-                                            log.trace("pipe.sink closed");
                                         } catch (final IOException ioe) {
                                             log.error("failed to close pipe.sink", ioe);
                                         }
@@ -121,15 +122,22 @@ public final class JinahyaDataBufferUtils {
                 p -> {
                     try {
                         p.source().close();
-                        log.trace("pipe.source closed");
                     } catch (final IOException ioe) {
-                        log.error("failed to close the pipe.source", ioe);
-                        throw new RuntimeException(ioe);
+                        throw new RuntimeException("failed to close the pipe.source", ioe);
                     }
                 }
         );
     }
 
+    /**
+     * Reduces specified stream of data buffers into an input stream and returns specified function's result applies
+     * with it.
+     *
+     * @param source   the stream of data buffers to reduce.
+     * @param function the function to apply with the reduced stream.
+     * @param <R>      result type parameter
+     * @return the result of the function.
+     */
     public static <R> Mono<R> reduceAndApply(final Publisher<? extends DataBuffer> source,
                                              final Function<? super InputStream, ? extends R> function) {
         requireNonNull(source, "source is null");

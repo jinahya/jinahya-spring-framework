@@ -43,7 +43,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
+import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
 import static java.util.concurrent.ThreadLocalRandom.current;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -135,28 +135,28 @@ public class JinahyaDataBufferUtilsTest {
     // --------------------------------------------------------------------------------------- writeAndApplyWithFunction
 
     /**
-     * Asserts {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)} method throws a {@code
+     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)} method throws a {@code
      * NullPointerException} when {@code source} is {@code null}.
      */
     @Test
     void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenSourceIsNull() {
         final Function<ReadableByteChannel, Void> function = c -> null;
-        assertThrows(NullPointerException.class, () -> writeToTempFileAndApply(null, function));
+        assertThrows(NullPointerException.class, () -> writeAndApply(null, function));
     }
 
     /**
-     * Asserts {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)} method throws a {@code
+     * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)} method throws a {@code
      * NullPointerException} when {@code function} is {@code null}.
      */
     @Test
     @SuppressWarnings({"unchecked"})
     void assertWriteToTempFileAndApplyThrowsNullPointerExceptionWhenFunctionIsNull() {
         final Publisher<DataBuffer> source = mock(Publisher.class);
-        assertThrows(NullPointerException.class, () -> writeToTempFileAndApply(source, null));
+        assertThrows(NullPointerException.class, () -> writeAndApply(source, null));
     }
 
     /**
-     * Tests {@link JinahyaDataBufferUtils#writeToTempFileAndApply(Publisher, Function)}  method.
+     * Tests {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)}  method.
      *
      * @param dataBuffers   a flux of data buffers.
      * @param totalCapacity the total size of data in buffers.
@@ -164,7 +164,7 @@ public class JinahyaDataBufferUtilsTest {
     @MethodSource({"sourceDataBuffersWithTotalCapacity"})
     @ParameterizedTest
     void testWriteAndApply(final Flux<DataBuffer> dataBuffers, final int totalCapacity) {
-        final Long actual = writeToTempFileAndApply(dataBuffers, GET_CHANNEL_SIZE).block();
+        final Long actual = writeAndApply(dataBuffers, GET_CHANNEL_SIZE).block();
         assertNotNull(actual);
         assertEquals(totalCapacity, actual.longValue());
     }

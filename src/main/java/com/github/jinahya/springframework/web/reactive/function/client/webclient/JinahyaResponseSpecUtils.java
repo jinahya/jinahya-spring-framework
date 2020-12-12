@@ -20,7 +20,9 @@ package com.github.jinahya.springframework.web.reactive.function.client.webclien
  * #L%
  */
 
+import com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -30,9 +32,6 @@ import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.util.function.Function;
 
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.pipeAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.reduceAndApply;
-import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeToTempFileAndApply;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -43,10 +42,19 @@ import static java.util.Objects.requireNonNull;
 @Slf4j
 public final class JinahyaResponseSpecUtils {
 
-    public static <R> Mono<R> writeBodyToTempFileAndApply(
+    /**
+     * Writes specified response spec's body to a temp file and applies a readable channel of the file to the function.
+     *
+     * @param response the response whose body is written to the file.
+     * @param function the function applies with the channel.
+     * @param <R>      result type parameter
+     * @return the result of the function.
+     * @see JinahyaDataBufferUtils#writeAndApply(Publisher, Function)
+     */
+    public static <R> Mono<R> writeBodyAndApply(
             final WebClient.ResponseSpec response, final Function<? super ReadableByteChannel, ? extends R> function) {
         requireNonNull(response, "response is null");
-        return writeToTempFileAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return JinahyaDataBufferUtils.writeAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
     /**
@@ -57,11 +65,12 @@ public final class JinahyaResponseSpecUtils {
      * @param function the function to be applied with the {@link Pipe#source() source} of the pipe.
      * @param <R>      result type parameter
      * @return a mono of result of the function.
+     * @see JinahyaDataBufferUtils#pipeAndApply(Publisher, Function)
      */
     public static <R> Mono<R> pipeBodyAndApply(final WebClient.ResponseSpec response,
                                                final Function<? super ReadableByteChannel, ? extends R> function) {
         requireNonNull(response, "response is null");
-        return pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return JinahyaDataBufferUtils.pipeAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
     /**
@@ -73,11 +82,12 @@ public final class JinahyaResponseSpecUtils {
      * @param <R>      result type parameter
      * @return a mono of the result of the {@code function}.
      * @implNote This method aggregates all bytes into a single stream in a non-memory-efficient manner.
+     * @see JinahyaDataBufferUtils#reduceAndApply(Publisher, Function)
      */
     public static <R> Mono<R> reduceBodyAndApply(final WebClient.ResponseSpec response,
                                                  final Function<? super InputStream, ? extends R> function) {
         requireNonNull(response, "response is null");
-        return reduceAndApply(response.bodyToFlux(DataBuffer.class), function);
+        return JinahyaDataBufferUtils.reduceAndApply(response.bodyToFlux(DataBuffer.class), function);
     }
 
     // -----------------------------------------------------------------------------------------------------------------

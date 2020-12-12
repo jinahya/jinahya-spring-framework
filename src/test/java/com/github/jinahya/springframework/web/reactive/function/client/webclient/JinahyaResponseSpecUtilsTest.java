@@ -63,7 +63,7 @@ class JinahyaResponseSpecUtilsTest {
     // -----------------------------------------------------------------------------------------------------------------
 
     /**
-     * Tests {@link JinahyaResponseSpecUtils#writeBodyToTempFileAndApply(WebClient.ResponseSpec, Function)} method.
+     * Tests {@link JinahyaResponseSpecUtils#writeBodyAndApply(WebClient.ResponseSpec, Function)} method.
      *
      * @param response a response spec whose body is written.
      * @param expected an expected total size of bytes.
@@ -71,7 +71,7 @@ class JinahyaResponseSpecUtilsTest {
     @MethodSource({"sourceResponseSpecWithExpected"})
     @ParameterizedTest
     void testWriteBodyAndApply(final WebClient.ResponseSpec response, final long expected) {
-        final Long actual = JinahyaResponseSpecUtils.writeBodyToTempFileAndApply(response, GET_CHANNEL_SIZE).block();
+        final Long actual = JinahyaResponseSpecUtils.writeBodyAndApply(response, GET_CHANNEL_SIZE).block();
         assertNotNull(actual);
         assertEquals(expected, actual.longValue());
     }

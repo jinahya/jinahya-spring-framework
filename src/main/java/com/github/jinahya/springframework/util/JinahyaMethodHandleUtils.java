@@ -20,6 +20,7 @@ package com.github.jinahya.springframework.util;
  * #L%
  */
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.invoke.MethodHandle;
@@ -27,7 +28,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.util.function.Supplier;
 
-public abstract class JinahyaMethodHandleUtils {
+@Slf4j
+public final class JinahyaMethodHandleUtils {
 
     /**
      * Returns an {@link MethodHandles.Lookup#unreflectConstructor(Constructor) unreflected} {@link
@@ -50,30 +52,27 @@ public abstract class JinahyaMethodHandleUtils {
     }
 
     public static <T> Supplier<T> accessibleDefaultConstructorHandleInvoker(final Class<T> clazz) {
-        return new Supplier<T>() {
-            @SuppressWarnings({"unchecked"})
-            @Override
-            public T get() {
-                MethodHandle h = handle;
-                if (h == null) {
-                    try {
-                        handle = h = accessibleConstructorHandle(clazz);
-                    } catch (final ReflectiveOperationException roe) {
-                        throw new RuntimeException("failed to get default constructor handle", roe);
-                    }
-                }
+        final MethodHandle[] handle = new MethodHandle[1];
+        return () -> {
+            MethodHandle h = handle[0];
+            if (h == null) {
                 try {
-                    return (T) h.invoke();
-                } catch (final Throwable t) {
-                    throw new RuntimeException("failed to invoke default constructor handle", t);
+                    handle[0] = h = accessibleConstructorHandle(clazz);
+                } catch (final ReflectiveOperationException roe) {
+                    throw new RuntimeException("failed to get default constructor handle", roe);
                 }
             }
-
-            private MethodHandle handle;
+            try {
+                @SuppressWarnings({"unchecked"})
+                final T invoke = (T) h.invoke();
+                return invoke;
+            } catch (final Throwable t) {
+                throw new RuntimeException("failed to invoke default constructor handle", t);
+            }
         };
     }
 
     protected JinahyaMethodHandleUtils() {
-        super();
+        throw new AssertionError("instantiation is not allowed");
     }
 }

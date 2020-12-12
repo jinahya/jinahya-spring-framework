@@ -36,10 +36,11 @@ import java.nio.channels.Pipe;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * A utility class for {@link DataBuffer} class and {@link DataBufferUtils} class.
@@ -60,11 +61,9 @@ public final class JinahyaDataBufferUtils {
      * @param <R>      result type parameter
      * @return a mono of the result of the function.
      */
-    public static <R> Mono<R> writeAndApply(
-            final Publisher<DataBuffer> source,
-            final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(function, "function is null");
+    public static <R> Mono<R> writeAndApply(final Publisher<DataBuffer> source,
+                                            final Function<? super ReadableByteChannel, ? extends R> function) {
+        Objects.requireNonNull(function, "function is null");
         return Mono.using(
                 () -> Files.createTempFile(null, null),
                 t -> DataBufferUtils
@@ -90,13 +89,14 @@ public final class JinahyaDataBufferUtils {
     }
 
     public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
-                                           final Function<? super ReadableByteChannel, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(function, "function is null");
+                                           final Function<? super ReadableByteChannel, ? extends R> function,
+                                           final Executor executor) {
+        Objects.requireNonNull(function, "function is null");
         return Mono.using(
                 Pipe::open,
                 p -> {
-                    final CompletableFuture<R> future = CompletableFuture.supplyAsync(() -> function.apply(p.source()));
+                    final CompletableFuture<R> future
+                            = CompletableFuture.supplyAsync(() -> function.apply(p.source()), executor);
                     return Mono
                             .fromFuture(future)
                             .doFirst(() -> DataBufferUtils
@@ -129,6 +129,11 @@ public final class JinahyaDataBufferUtils {
         );
     }
 
+    public static <R> Mono<R> pipeAndApply(final Publisher<DataBuffer> source,
+                                           final Function<? super ReadableByteChannel, ? extends R> function) {
+        return pipeAndApply(source, function, ForkJoinPool.commonPool());
+    }
+
     /**
      * Reduces specified stream of data buffers into an input stream and returns specified function's result applies
      * with it.
@@ -140,8 +145,7 @@ public final class JinahyaDataBufferUtils {
      */
     public static <R> Mono<R> reduceAndApply(final Publisher<? extends DataBuffer> source,
                                              final Function<? super InputStream, ? extends R> function) {
-        requireNonNull(source, "source is null");
-        requireNonNull(function, "function is null");
+        Objects.requireNonNull(function, "function is null");
         return Flux
                 .from(source)
                 .map(b -> b.asInputStream(true))
@@ -157,11 +161,7 @@ public final class JinahyaDataBufferUtils {
     }
 
     // -----------------------------------------------------------------------------------------------------------------
-
-    /**
-     * Creates a new instance.
-     */
     private JinahyaDataBufferUtils() {
-        super();
+        throw new AssertionError("instantiation is not allowed");
     }
 }

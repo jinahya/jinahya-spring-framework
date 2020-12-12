@@ -96,6 +96,6 @@ public final class JinahyaResponseSpecUtils {
      * Creates a new instance.
      */
     private JinahyaResponseSpecUtils() {
-        super();
+        throw new AssertionError("instantiation is not allowed");
     }
 }

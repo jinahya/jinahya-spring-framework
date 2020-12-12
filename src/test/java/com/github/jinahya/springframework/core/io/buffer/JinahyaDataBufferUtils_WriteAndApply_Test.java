@@ -33,7 +33,6 @@ import org.reactivestreams.Publisher;
 import org.springframework.core.io.buffer.DataBuffer;
 import reactor.core.publisher.Flux;
 
-import java.nio.channels.ReadableByteChannel;
 import java.util.function.Function;
 
 import static com.github.jinahya.springframework.core.io.buffer.JinahyaDataBufferUtils.writeAndApply;
@@ -51,12 +50,6 @@ import static org.mockito.Mockito.mock;
 @ExtendWith({TempFileParameterResolver.class, WeldJunit5AutoExtension.class})
 @Slf4j
 class JinahyaDataBufferUtils_WriteAndApply_Test extends JinahyaDataBufferUtilsTest {
-
-    @Test
-    void assertWriteAndApplyThrowsNullPointerExceptionWhenSourceIsNull() {
-        final Function<ReadableByteChannel, Void> function = c -> null;
-        assertThrows(NullPointerException.class, () -> writeAndApply(null, function));
-    }
 
     /**
      * Asserts {@link JinahyaDataBufferUtils#writeAndApply(Publisher, Function)} method throws a {@code

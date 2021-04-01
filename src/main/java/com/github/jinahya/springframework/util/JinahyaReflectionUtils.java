@@ -29,8 +29,8 @@ public abstract class JinahyaReflectionUtils {
      */
     @Nullable
     @SuppressWarnings({"unchecked"})
-    public static <T> T findAndGetField(@NonNull final Class<?> clazz, @Nullable final String name,
-                                        @Nullable final Class<T> type, @Nullable final Object target) {
+    public static <T> T findFieldAndGet(@NonNull final Class<?> clazz, @Nullable final String name,
+                                        @Nullable final Class<? extends T> type, @Nullable final Object target) {
         final Field field = findField(clazz, name, type);
         if (field == null) {
             throw new RuntimeException("no field found for " + clazz + ", " + name + ", " + type);
@@ -54,8 +54,8 @@ public abstract class JinahyaReflectionUtils {
      * @see ReflectionUtils#findField(Class, String, Class)
      * @see ReflectionUtils#setField(Field, Object, Object)
      */
-    public static <T> void findAndSetField(@NonNull final Class<?> clazz, @Nullable final String name,
-                                           @Nullable final Class<T> type, @Nullable final Object target,
+    public static <T> void findFieldAndSet(@NonNull final Class<?> clazz, @Nullable final String name,
+                                           @Nullable final Class<? super T> type, @Nullable final Object target,
                                            @Nullable final T value) {
         final Field field = findField(clazz, name, type);
         if (field == null) {

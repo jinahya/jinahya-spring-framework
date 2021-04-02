@@ -5,6 +5,8 @@ import org.springframework.lang.Nullable;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static org.springframework.util.ReflectionUtils.findField;
 import static org.springframework.util.ReflectionUtils.getField;
@@ -12,6 +14,19 @@ import static org.springframework.util.ReflectionUtils.makeAccessible;
 import static org.springframework.util.ReflectionUtils.setField;
 
 public abstract class JinahyaReflectionUtils {
+
+    public static void doWithFields(final Class<?> clazz, final Consumer<? super Field> consumer) {
+        ReflectionUtils.doWithFields(clazz, consumer::accept);
+    }
+
+    public static void doWithFields(final Class<?> clazz, final Consumer<? super Field> consumer,
+                                    @Nullable final Predicate<? super Field> predicate) {
+        if (predicate == null) {
+            doWithFields(clazz, consumer);
+            return;
+        }
+        ReflectionUtils.doWithFields(clazz, consumer::accept, predicate::test);
+    }
 
     /**
      * Attempt to find a {@link java.lang.reflect.Field field} on the supplied {@link java.lang.Class Class} with the

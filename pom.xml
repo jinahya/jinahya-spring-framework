@@ -51,7 +51,7 @@
     <version.org.junit.jupiter>5.7.0-M1</version.org.junit.jupiter>
     <version.org.mockito>3.4.6</version.org.mockito>
     <version.org.projectlombok>1.18.12</version.org.projectlombok>
-    <version.org.springframework>5.2.8.RELEASE</version.org.springframework>
+    <version.org.springframework>5.2.9.RELEASE</version.org.springframework>
   </properties>
 
   <dependencyManagement>
